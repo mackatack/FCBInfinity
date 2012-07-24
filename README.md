@@ -6,7 +6,8 @@ This is the home of all the source and schematics for my FCBInfinity project. In
 For more info while I work on this project, see: [http://mackatackblog.wordpress.com](http://mackatackblog.wordpress.com)
 
 
-Partlist: [FCBInfinity partlist](https://github.com/mackatack/FCBInfinity/blob/master/Teensyduino/parts/Partlist.md)
+FAQ: [FCBInfinity Frequently Asked Questions](https://github.com/mackatack/FCBInfinity/blob/master/faq.md)  
+Partlist: [FCBInfinity partlist](https://github.com/mackatack/FCBInfinity/blob/master/Partlist.md)
 
 ![](http://mackatackblog.files.wordpress.com/2012/06/wpid-20120626_0924241.jpg?w=630)
 
