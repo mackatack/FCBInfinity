@@ -1,4 +1,4 @@
-A list of parts that I used for this project:
+# A list of parts that I used for this project: #
 
 
 ## Teensy++ 2.0 ##
@@ -15,7 +15,7 @@ Don't forget that you also need an [USB to Mini-USB cable](http://bin.ilsemedia.
 ![](http://www.earthshineelectronics.com/67-251-large/20x2-characters-lcd-module-yellow-backlight-green-character.jpg)
 
 ----------
-## 7seg LED Digits ##
+## 7seg LED Digits **(x 3!)** ##
 **3x** SC56-11 SRWA RED 14 MM (***Common Kathode!***)  
 [www.conrad.nl](http://www.conrad.nl/ce/nl/product/160237/SC56-11-SRWA-ROOD-14-MM-K)  
 [datasheet](http://www.produktinfo.conrad.com/datenblaetter/150000-174999/160237-da-01-en-7_SEGMENTANZEIGE_14MM_ROT.pdf)  
@@ -51,3 +51,22 @@ Don't forget that you also need an [USB to Mini-USB cable](http://bin.ilsemedia.
 [www.conrad.nl](http://www.conrad.nl/ce/nl/product/501433/Silicium-brug-gelijkrichter-B40C1500-2A/6203210&ref=list)
 
 ![](http://www.iowacitylist.com/Automotive-Repair-/New-W08G-800-volt-silicon-bridge-rectifier-100-pc-bag-image.jpg)
+
+----------
+## RGB Red ##
+[www.conrad.nl](http://www.conrad.nl/ce/nl/product/185353/LED-Full-color-5mm-diffuus/0212268&ref=list)  
+[datasheet](http://www.produktinfo.conrad.com/datenblaetter/175000-199999/185353-da-01-en-FULL_COLOR_RGB_LED_DIFFUS.pdf) 
+
+![](http://rgb.kitiyo.com/2008/pics/rgbled.jpg) 
+
+----------
+## Pushbuttons ##
+**4x** R13-85A-05 Pushbutton  
+[www.conrad.nl](http://www.conrad.nl/ce/nl/product/701083/DRUKKNOP-R13-85A-05)  
+[datasheet](http://www.produktinfo.conrad.com/datenblaetter/700000-724999/701083-da-01-en-DRUCKTASTER_R13_85A_05.pdf)  
+
+![](http://t0.gstatic.com/images?q=tbn:ANd9GcRWWM2I7Nbc15cuxujwZyXg-lP-nz4qwIPVzGcqKUlZ29cdwOCzuQ&t=1)
+
+----------
+## Connectors and cables ##
+Will update soon
