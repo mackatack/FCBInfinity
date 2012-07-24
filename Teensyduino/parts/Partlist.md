@@ -29,4 +29,25 @@ Don't forget that you also need an [USB to Mini-USB cable](http://bin.ilsemedia.
 
 ![](http://www.gooddealchina.com/upimage/images/2011081161115249.JPG)
 
+----------
+## 7805 5v Power regulator ##
+**1x** 7805 5v power regulator in TO 220 form  
+[www.conrad.nl](http://www.conrad.nl/ce/nl/product/179205/Spanningsregelaar-7805-ST)  
+[datasheet](http://www.produktinfo.conrad.com/datenblaetter/175000-199999/179205-da-01-en-IC_7805_TO_220.pdf)  
+![](http://talkingelectronics.com/projects/LogicDesigner/images/7805.gif)
 
+----------
+## Elco 220uF ##
+[www.conrad.nl](http://www.conrad.nl/ce/nl/product/443987/Alu-elco-220uF35V-Low-ESR/SHOP_AREA_17434&promotionareaSearchDetail=005)  
+
+![](http://www.elektronicagoedkoop.nl/847-1515-large/470a0d.jpg)
+
+----------
+## Elco 470uF ##
+[www.conrad.nl](http://www.conrad.nl/ce/nl/product/444020/Alu-elco-470uF35V-Low-ESR/SHOP_AREA_17434&promotionareaSearchDetail=005)  
+
+----------
+## Bridge Rectifier ##
+[www.conrad.nl](http://www.conrad.nl/ce/nl/product/501433/Silicium-brug-gelijkrichter-B40C1500-2A/6203210&ref=list)
+
+![](http://www.iowacitylist.com/Automotive-Repair-/New-W08G-800-volt-silicon-bridge-rectifier-100-pc-bag-image.jpg)
