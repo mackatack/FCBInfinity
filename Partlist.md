@@ -54,11 +54,13 @@ Don't forget that you also need an [USB to Mini-USB cable](http://bin.ilsemedia.
 ## Elco 220uF ##
 [www.conrad.nl](http://www.conrad.nl/ce/nl/product/443987/Alu-elco-220uF35V-Low-ESR/SHOP_AREA_17434&promotionareaSearchDetail=005)  
 
-![](http://www.elektronicagoedkoop.nl/847-1515-large/470a0d.jpg)
+![](http://www.conrad.nl/medias/global/ce/4000_4999/4400/4430/4439/443906_BB_00_FB.EPS_250.jpg)
 
 ----------
 ## Elco 470uF ##
 [www.conrad.nl](http://www.conrad.nl/ce/nl/product/444020/Alu-elco-470uF35V-Low-ESR/SHOP_AREA_17434&promotionareaSearchDetail=005)  
+
+![](http://www.conrad.nl/medias/global/ce/4000_4999/4400/4430/4439/443906_BB_00_FB.EPS_250.jpg)
 
 ----------
 ## Bridge Rectifier ##
