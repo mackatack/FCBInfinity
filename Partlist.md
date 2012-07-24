@@ -21,6 +21,14 @@ Don't forget that you also need an [USB to Mini-USB cable](http://bin.ilsemedia.
 ![](http://www.conrad.nl/medias/global/ce/1000_1999/1400/1420/1420/142050_LB_00_FB.EPS_250.jpg)
 
 ----------
+## Potmeter ##
+**1x** 1kOhm three pin potentiometer for LCD contrast adjust  
+[www.conrad.nl](http://www.conrad.nl/ce/nl/product/445536/Potmeter-PC16-mono-10-kOhm-lin)  
+[datasheet](http://www.produktinfo.conrad.com/datenblaetter/425000-449999/445536-da-01-en-POTENTIOMETER_PC16_Mono.pdf)
+
+![](http://www.conrad.nl/medias/global/ce/4000_4999/4400/4450/4450/445063_LB_00_FB.EPS_250.jpg)
+
+----------
 ## 7seg LED Digits **(x 3!)** ##
 **3x** SC56-11 SRWA RED 14 MM (***Common Kathode!***)  
 [www.conrad.nl](http://www.conrad.nl/ce/nl/product/160237/SC56-11-SRWA-ROOD-14-MM-K)  
