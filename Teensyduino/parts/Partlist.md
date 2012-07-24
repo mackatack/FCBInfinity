@@ -9,10 +9,16 @@ Don't forget that you also need an [USB to Mini-USB cable](http://bin.ilsemedia.
 ![](http://www.pjrc.com/store/teensypp_pins_1.jpg)
 
 ----------
-## LCD (2x20) ##
+## LCD (20x2) ##
 [www.conrad.nl](http://www.conrad.nl/ce/nl/product/184748/LC-display-puntmatrix-module-20x2-tekens)  
 [datasheet](http://www.produktinfo.conrad.com/datenblaetter/175000-199999/184748-da-01-ml-LCD_Modul_20x2_Zeichen_LED_de_en.pdf)  
 ![](http://www.earthshineelectronics.com/67-251-large/20x2-characters-lcd-module-yellow-backlight-green-character.jpg)
+
+----------
+## LCD (20x2) Faceplate ##
+[www.conrad.nl](http://www.conrad.nl/ce/nl/product/142034/LCD-puntmatrix-module-frontplaat-20x2)  
+[datasheet](http://www.produktinfo.conrad.com/datenblaetter/125000-149999/142034-da-01-de-LCD_RAHMEN_FUER_2X20_DISPLAY.pdf)  
+![](http://www.conrad.nl/medias/global/ce/1000_1999/1400/1420/1420/142050_LB_00_FB.EPS_250.jpg)
 
 ----------
 ## 7seg LED Digits **(x 3!)** ##
