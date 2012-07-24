@@ -1,3 +1,5 @@
+
+
 /*
 
 This is the main Arduino/Teensyduino file for the FCBInfinity project.
@@ -8,10 +10,11 @@ consider the code below still in Alpha/Testing phase. Use at work risk
 
 */
 
-#include <MIDI.h>
 #include <Bounce.h>
 #include <LedControl.h>
 #include <LiquidCrystalFast.h>
+#include <MIDI.h>
+#include "AxeMidi.h"
  
 // Initialisation of the LCD
 // link here
@@ -62,8 +65,8 @@ void setup() {
   
   // Init midi  
   //Serial.begin(31250);
-  //MIDI.begin(MIDI_CHANNEL_OMNI); 
-  //MIDI.turnThruOff();
+  AxeMidi.begin(MIDI_CHANNEL_OMNI); 
+  AxeMidi.turnThruOff();
   //Serial.begin(57600);
   //Serial.println("MIDI Input Test");  
   
@@ -174,7 +177,7 @@ void loop() {
   
 }
 
-int safeAnalogRead(pin) {
+int safeAnalogRead(int pin) {
   analogRead(pin);
   delay(15);
   return analogRead(pin);
