@@ -26,3 +26,28 @@ void sendCheckedSysex() {
 void finalizeCheckedSysex() {
 }
 
+boolean AxeMidi_Class::handleMidi() {
+
+  if (!AxeMidi.read(MIDI_CHANNEL_OMNI)) {
+    m_bHasMessage = false;
+    return false;
+  }
+
+  m_bHasMessage = true;
+
+  Serial.print("Type: ");
+  Serial.print(AxeMidi.getType());
+  Serial.print(", data1: ");
+  Serial.print(AxeMidi.getData1());
+  Serial.print(", data2: ");
+  Serial.print(AxeMidi.getData2());
+  Serial.print(", Channel: ");
+  Serial.print(AxeMidi.getChannel());
+  Serial.println(", MIDI OK!");
+
+  return true;
+}
+
+boolean AxeMidi_Class::hasMessage() {
+  return m_bHasMessage;
+}

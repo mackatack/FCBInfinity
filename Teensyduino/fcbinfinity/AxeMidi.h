@@ -15,12 +15,38 @@
 #include <Wprogram.h>
 #include <MIDI.h>
 
+//
+
 class AxeMidi_Class: public MIDI_Class {
   public:
     void startTuner();
     void readTuner();
     void sendCheckedSysex();
     void finalizeCheckedSysex();
+    
+    /* Check for new incoming MIDI messages, call this once every loop cycle */
+    boolean handleMidi();
+    /* hasMessage returns whether or not we received a message this loop */
+    boolean hasMessage();
+   
+    /*! Receive a Note On message */
+    void onNoteOn(byte NoteNumber,byte Velocity,byte Channel);
+    /*! Receive a Note Off message (a real Note Off, not a Note On with null velocity) */
+    void onNoteOff(byte NoteNumber,byte Velocity,byte Channel);
+    /*! Receive a Program Change message */
+    void onProgramChange(byte ProgramNumber,byte Channel);
+    /*! Receive a Control Change message */
+    void onControlChange(byte ControlNumber, byte ControlValue,byte Channel);
+    /*! Receive AfterTouch (carries the information of pressure of the given key/note) */
+    void onPolyPressure(byte NoteNumber,byte Pressure,byte Channel);
+    /*! Receive AfterTouch */
+    void onAfterTouch(byte Pressure,byte Channel);
+
+    void onRawSysex();
+    void onTunerData();
+    void onPatchInfo();
+  private:
+    boolean m_bHasMessage;
 };
 
 extern AxeMidi_Class AxeMidi;
