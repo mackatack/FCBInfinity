@@ -14,8 +14,8 @@
   #include <LedControl.h>
   #include <LiquidCrystalFast.h>
   #include <MIDI.h>
-  #include "AxeMidi.h"
-  #include "ExpPedals.h"
+  #include <AxeMidi.h>
+  #include <ExpPedals.h>
 
   // Pinouts for various IO on the teensy board.
   // See http://www.pjrc.com/teensy/teensyduino.html for more information about the pinout
@@ -47,11 +47,12 @@
   // constructor: LiquidCrystalFast lcd(RS, RW, Enable, D4, D5, D6, D7);
   extern LiquidCrystalFast lcd;
 
+
   // A struct that combines information for the original buttons on the FCB1010 that
   // have a led to indicate their status. Thus; the 1 - 10 buttons.
   typedef struct {
-    int x;
     int y;
+    int x;
     Bounce btn;
     boolean ledStatus;
   } _FCBInfButton;
@@ -62,5 +63,13 @@
   extern Bounce btnBankUp;
   extern Bounce btnBankDown;
   extern Bounce btnStompBank;
+
+
+  // Make the expressionpedals available globally,
+  // if you need more pedals just add here and initialize them in
+  // the .ino file
+  extern ExpPedals_Class ExpPedal1;
+  extern ExpPedals_Class ExpPedal2;
+
 
 #endif

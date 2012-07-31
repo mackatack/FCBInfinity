@@ -38,14 +38,4 @@ class ExpPedals_Class {
     int m_iHighCalibration;
 };
 
-
-// Make the expressionpedals available globally,
-// if you need more just uncomment and check the .cpp file as well
-extern ExpPedals_Class ExpPedal1;
-extern ExpPedals_Class ExpPedal2;
-//extern ExpPedals_Class ExpPedal3;
-//extern ExpPedals_Class ExpPedal4;
-//extern ExpPedals_Class ExpPedal5;
-//extern ExpPedals_Class ExpPedal6;
-
 #endif

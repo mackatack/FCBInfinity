@@ -19,34 +19,37 @@
 
 class AxeMidi_Class: public MIDI_Class {
   public:
+    AxeMidi_Class();
+
     void startTuner();
     void readTuner();
-    void sendCheckedSysex();
-    void finalizeCheckedSysex();
-    
+    void sendSysEx(byte length, byte * array);
+
     /* Check for new incoming MIDI messages, call this once every loop cycle */
     boolean handleMidi();
     /* hasMessage returns whether or not we received a message this loop */
     boolean hasMessage();
-   
-    /*! Receive a Note On message */
-    void onNoteOn(byte NoteNumber,byte Velocity,byte Channel);
-    /*! Receive a Note Off message (a real Note Off, not a Note On with null velocity) */
-    void onNoteOff(byte NoteNumber,byte Velocity,byte Channel);
-    /*! Receive a Program Change message */
-    void onProgramChange(byte ProgramNumber,byte Channel);
-    /*! Receive a Control Change message */
-    void onControlChange(byte ControlNumber, byte ControlValue,byte Channel);
-    /*! Receive AfterTouch (carries the information of pressure of the given key/note) */
-    void onPolyPressure(byte NoteNumber,byte Pressure,byte Channel);
-    /*! Receive AfterTouch */
-    void onAfterTouch(byte Pressure,byte Channel);
+
+    void requestPresetName();
+
 
     void onRawSysex();
     void onTunerData();
     void onPatchInfo();
-  private:
+
+    /**
+     * The AxeFX-II requires us to send checksummed SysEx messages over midi and
+     * it will also send checksummed messages. This boolean controls whether or not
+     * to send the extra byte checksum and allows older AxeFX models to also use this
+     * library. If you want to use this library with the AxeFX-II you should set this
+     * variable to true after the initialization of the library.
+     */
+    boolean getSendReceiveChecksummedSysEx();
+    void setSendReceiveChecksummedSysEx(boolean sendReceiveChecksummedSysex);
+
+  protected:
     boolean m_bHasMessage;
+    boolean m_bSendReceiveChecksummedSysEx;
 };
 
 extern AxeMidi_Class AxeMidi;

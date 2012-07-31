@@ -18,6 +18,11 @@
 #include <LedControl.h>
 #include <LiquidCrystalFast.h>
 #include <MIDI.h>
+
+
+#include "io_ExpPedals.h"
+#include "io_AxeMidi.h"
+
 #include "fcbinfinity.h"
 
 /**
@@ -28,31 +33,36 @@
  */
 
 // Initialization of the LCD
-LiquidCrystalFast lcd(19, 18, 38, 39, 40, 41, 42);  // (RS, RW, Enable, D4, D5, D6, D7)
+LiquidCrystalFast lcd(19, 18, 38, 39, 40, 41, 42);  // pins: (RS, RW, Enable, D4, D5, D6, D7)
 
 // Initialization of the MAX7219 chip, this chip controls all the leds on the system (except stompbank-rgb)
-LedControl ledControl = LedControl(43, 20, 21, 1);  // (DIN, CLK, LOAD, number_of_chips)
+LedControl ledControl = LedControl(43, 20, 21, 1);  // pins: (DIN, CLK, LOAD, number_of_chips)
 
 // The buttons in an array together with the x,y coordinates where the corresponding
 // led can be found on the MAX7219 chip using the ledControl object.
 // See the mkBounce() function for more information about the buttons.
 _FCBInfButton btnRowUpper[] = {
-  {1, 6, mkBounce(11), false},
-  {1, 2, mkBounce(12), false},
-  {1, 3, mkBounce(13), false},
-  {1, 7, mkBounce(14), false},
-  {1, 0, mkBounce(15), false}
+  {2, 4, mkBounce(11), false},
+  {2, 6, mkBounce(12), false},
+  {2, 3, mkBounce(13), false},
+  {2, 7, mkBounce(14), false},
+  {2, 5, mkBounce(15), false}
 };
 _FCBInfButton btnRowLower[] = {
-  {0, 0, mkBounce(4), false},
-  {0, 7, mkBounce(5), false},
-  {0, 3, mkBounce(7), false},
-  {0, 2, mkBounce(8), false},
-  {0, 6, mkBounce(9), false}
+  {1, 4, mkBounce(4), false},
+  {1, 6, mkBounce(5), false},
+  {1, 3, mkBounce(7), false},
+  {1, 7, mkBounce(8), false},
+  {1, 5, mkBounce(9), false}
 };
 Bounce btnBankUp = mkBounce(16);
 Bounce btnBankDown = mkBounce(10);
 Bounce btnStompBank = mkBounce(25);
+Bounce btnExpPedalRight = mkBounce(24);
+
+// Initialization of the ExpressionPedals
+ExpPedals_Class ExpPedal1(A6);  // Analog pin 6 (pin 44 on the Teensy)
+ExpPedals_Class ExpPedal2(A7);  // Analog pin 7 (pin 45 on the Teensy)
 
 
 /**
@@ -66,7 +76,7 @@ Bounce btnStompBank = mkBounce(25);
 void setup() {
   // Light up the on-board teensy led
   pinMode(PIN_ONBOARD_LED, OUTPUT);
-  digitalWrite(PIN_ONBOARD_LED, HIGH);
+  digitalWrite(PIN_ONBOARD_LED, HIGH);  // HIGH means on, LOW means off
 
   // Start the debugging information over serial
   Serial.begin(57600);
@@ -75,11 +85,14 @@ void setup() {
   // Initialize MIDI, for now set midiThru off and channel to OMNI
   AxeMidi.begin(MIDI_CHANNEL_OMNI);
   AxeMidi.turnThruOff();
-  Serial.println("- midi done");
+  // The AxeFX-II wants checksummed sysex messages, set this to false
+  // if you use an Ultra or older model.
+  AxeMidi.setSendReceiveChecksummedSysEx(true);
+  Serial.println("- midi setup done");
 
   // Turn all the leds on that are connected to the MAX chip.
   ledControl.shutdown(0, false);  // turns on display
-  ledControl.setIntensity(0, 7);  // 15 = brightest
+  ledControl.setIntensity(0, 4);  // 15 = brightest
   for(int i=0; i<=7; i++) {
     ledControl.setDigit(0, i, 8, true);
   }
@@ -136,11 +149,66 @@ void loop() {
 
   // Lets check if we received a MIDI message
   if (AxeMidi.hasMessage()) {
-      // Yup we've got data, see MIDI.h for more info
+      // Yup we've got data, see AxeMidi.h and MIDI.h for more info
       // AxeMidi.getType()
       // AxeMidi.getData1()
       // AxeMidi.getData2();
+      // AxeMidi.getSysExArray();
   }
+
+  // Update the button states
+  for(int i=0; i<5; ++i) {
+    if (btnRowUpper[i].btn.fallingEdge()) {
+      setLedDigitValue(i+10+1);
+      btnRowUpper[i].ledStatus = !btnRowUpper[i].ledStatus;
+      ledControl.setLed(0, btnRowUpper[i].x, btnRowUpper[i].y, btnRowUpper[i].ledStatus);
+    }
+    if (btnRowLower[i].btn.fallingEdge()) {
+      setLedDigitValue(i+20+1);
+      btnRowLower[i].ledStatus = !btnRowLower[i].ledStatus;
+      ledControl.setLed(0, btnRowLower[i].x, btnRowLower[i].y, btnRowLower[i].ledStatus);
+    }
+  }
+
+  if (btnBankUp.fallingEdge())
+    setLedDigitValue(19);
+  if (btnBankDown.fallingEdge())
+    setLedDigitValue(29);
+
+  static int iStompBank = 0;
+
+  if (btnStompBank.fallingEdge()) {
+    // Stomp button has been pressed
+    iStompBank++;
+    iStompBank %= 3;
+    analogWrite(PIN_RGBLED_R, 0);
+    analogWrite(PIN_RGBLED_G, 0);
+    analogWrite(PIN_RGBLED_B, 0);
+    switch (iStompBank) {
+      case 0:
+        analogWrite(PIN_RGBLED_R, 60); break;
+      case 1:
+        analogWrite(PIN_RGBLED_G, 60); break;
+      case 2:
+        analogWrite(PIN_RGBLED_B, 60); break;
+    }
+
+    static boolean stompTestToggle;
+    stompTestToggle = !stompTestToggle;
+    for(int i=0; i<=7; i++) {
+      if (stompTestToggle)
+        ledControl.setDigit(0, i, 8, true);
+      else
+        ledControl.setChar(0, i, ' ', false);
+    }
+
+    // Also send a sysEx to the AxeFX to request the patch name
+    AxeMidi.requestPresetName();
+  }
+
+
+  return;
+
 
   // A piece of testing code that just toggles the leds
   // on the device every 100ms
@@ -159,6 +227,8 @@ void loop() {
         ledControl.setChar(0, i, ' ', false);
     }
   }
+
+
 
   /*
   // Keeping this here for a little while, until we move it elsewhere
@@ -188,9 +258,14 @@ void loop() {
  * This method needs to be called first every loop and only once every loop
  * It checks for new data on all the IO, such as buttons, analog devices (ExpPedals) and Midi
  */
-elapsedMillis updateIOTimer;
+elapsedMicros updateIOTimer;
 void updateIO() {
-  // Debug: check how long it takes for all the IO to update...
+  // Debug: output the time it took to do all the other stuff and
+  // start the IO handling again.
+  Serial.print("IO Update started after micros: ");
+  Serial.println(updateIOTimer);
+
+  // Reset the timer
   updateIOTimer = 0;
 
   // Check for new midi messages
@@ -212,7 +287,7 @@ void updateIO() {
   btnStompBank.update();
 
   // Debug: output the time it took to update all the IO
-  Serial.print("IO Update took ms: ");
+  Serial.print("IO Update took micros: ");
   Serial.println(updateIOTimer);
 }
 
@@ -250,9 +325,9 @@ void doBootSplash() {
   ledControl.setChar(0, 2, 'F', true);
 
    // Write something on the LCD
-  //lcd.begin(20, 2);
-  //lcd.println(" FCB-Infinity v1.0");
-  //lcd.println("         Mackatack");
+  lcd.begin(20, 2);
+  lcd.println(" FCB-Infinity v1.0");
+  lcd.println("         Mackatack");
   /*
   delay(800);
   lcd.clear();
