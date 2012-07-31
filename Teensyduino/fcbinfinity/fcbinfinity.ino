@@ -19,7 +19,6 @@
 #include <LiquidCrystalFast.h>
 #include <MIDI.h>
 
-
 #include "io_ExpPedals.h"
 #include "io_AxeMidi.h"
 
