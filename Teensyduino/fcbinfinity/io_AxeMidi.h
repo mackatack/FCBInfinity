@@ -15,27 +15,29 @@
 #include <Wprogram.h>
 #include <MIDI.h>
 
+
+#define SYSEX_AXEFX_REALTIME_TUNER 0x0D
+#define SYSEX_AXEFX_REALTIME_TEMPO 0x10
+
+#define SYSEX_AXEFX_PRESET_NAME 0x0F
+#define SYSEX_AXEFX_PRESET_CHANGE 0x14
+
 //
 
 class AxeMidi_Class: public MIDI_Class {
   public:
     AxeMidi_Class();
 
+    static const char *notes[]; //= {"A ", "A#", "B ", "C ", "C#", "D ", "D#", "E ", "F ", "F#", "G ", "G#"};
+
     void startTuner();
-    void readTuner();
+    void requestPresetName();
     void sendSysEx(byte length, byte * array);
 
     /* Check for new incoming MIDI messages, call this once every loop cycle */
     boolean handleMidi();
     /* hasMessage returns whether or not we received a message this loop */
     boolean hasMessage();
-
-    void requestPresetName();
-
-
-    void onRawSysex();
-    void onTunerData();
-    void onPatchInfo();
 
     /**
      * The AxeFX-II requires us to send checksummed SysEx messages over midi and

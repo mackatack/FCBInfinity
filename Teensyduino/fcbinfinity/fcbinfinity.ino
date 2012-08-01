@@ -18,6 +18,9 @@
 #include <LedControl.h>
 #include <LiquidCrystalFast.h>
 #include <MIDI.h>
+#include <EEPROM.h>
+
+#include "utils_FCBSettings.h"
 
 #include "io_ExpPedals.h"
 #include "io_AxeMidi.h"
@@ -137,12 +140,15 @@ void loop() {
     Serial.print(", raw: ");
     Serial.println(ExpPedal1.getRawValue());
     setLedDigitValue(ExpPedal1.getValue());
+
+    // Send CC# 1 on channel 1, for debugging
     AxeMidi.sendControlChange(1, ExpPedal1.getValue(), 1);
   }
 
   // ExpPedal2 has a new value?
   // Just send the midi message
   if (ExpPedal2.hasChanged()) {
+    // Send CC# 2 on channel 1, for debugging
     AxeMidi.sendControlChange(2, ExpPedal2.getValue(), 1);
   }
 
@@ -153,29 +159,47 @@ void loop() {
       // AxeMidi.getData1()
       // AxeMidi.getData2();
       // AxeMidi.getSysExArray();
+
+    if (AxeMidi.getType()==SysEx) {
+      // Well well, the Axe is talking to us!
+      // Keep in mind the any midi messages that we receive might
+      // be an echo of a message that we sent ourselves
+      handleMidiSysEx();
+    }
   }
 
-  // Update the button states
+  // Update the button states, when a button is pressed set
+  // the LED-Digits to the button id, toggle the indicator led
+  // that is associated with the button and send a ProgramChange
+  // midi message
   for(int i=0; i<5; ++i) {
+    // Check the upper row of buttons
     if (btnRowUpper[i].btn.fallingEdge()) {
       setLedDigitValue(i+10+1);
       btnRowUpper[i].ledStatus = !btnRowUpper[i].ledStatus;
       ledControl.setLed(0, btnRowUpper[i].x, btnRowUpper[i].y, btnRowUpper[i].ledStatus);
+      AxeMidi.sendProgramChange(i+5, 1);
     }
+
+    // Check the lower row of buttons
     if (btnRowLower[i].btn.fallingEdge()) {
       setLedDigitValue(i+20+1);
       btnRowLower[i].ledStatus = !btnRowLower[i].ledStatus;
       ledControl.setLed(0, btnRowLower[i].x, btnRowLower[i].y, btnRowLower[i].ledStatus);
+      AxeMidi.sendProgramChange(i, 1);
     }
   }
 
+  // If the bankUp/Down buttons are pressed, only set the LED-Digits to
+  // read their button id for now.
   if (btnBankUp.fallingEdge())
     setLedDigitValue(19);
   if (btnBankDown.fallingEdge())
     setLedDigitValue(29);
 
+  // If the stompBox button is pressed, just toggle the rgb channels
+  // and toggle all the leds in the system, for debugging
   static int iStompBank = 0;
-
   if (btnStompBank.fallingEdge()) {
     // Stomp button has been pressed
     iStompBank++;
@@ -202,53 +226,128 @@ void loop() {
     }
 
     // Also send a sysEx to the AxeFX to request the patch name
-    AxeMidi.requestPresetName();
+    // AxeMidi.requestPresetName();
   }
+}
 
+/**
+ * A seperate function to handle all the midi sysex messages
+ * we might receive. Putting this in a separate function allows
+ * us to use 'return' in case of errors etc.
+ *
+ * @TODO add more documentation
+ */
+void handleMidiSysEx() {
+  int length = AxeMidi.getData1();
+  // In case the length<5, it's an empty SysEx, just ignore it.
+  if (length<5) return;
 
-  return;
+  // Get the byte array SysEx message
+  byte *sysex = AxeMidi.getSysExArray();
 
+  // Byte 5 of the SysEx message holds the function number
+  switch (sysex[5]) {
 
-  // A piece of testing code that just toggles the leds
-  // on the device every 100ms
-  static elapsedMillis digitElapsed;
-  static boolean noDigitStatus;
-  // 100ms passed?
-  if (digitElapsed>100) {
-    // reset timer and flip the led status
-    digitElapsed = 0;
-    noDigitStatus = !noDigitStatus;
-    // 0, 1, 2 control the led digits, so start at 3.
-    for(int i=3; i<=7; i++) {
-      if (noDigitStatus)
-        ledControl.setDigit(0, i, 8, true);
-      else
-        ledControl.setChar(0, i, ' ', false);
+    case SYSEX_AXEFX_REALTIME_TEMPO:
+      // Tempo, just flash a led or something
+      // There's no additional data
+      return;
+
+    case SYSEX_AXEFX_REALTIME_TUNER: {
+      // Tuner
+      // Byte 6 Holds the note starting at A
+      // Byte 7 Holds the octave
+      // Byte 8 Holds the finetune data between 0x00 and 0x7F
+
+      lcd.setCursor(0,1);
+      lcd.print("                    ");
+
+      // Translate the finetune (0-127) to a value between 2 and 20
+      // so we know where to print the '|' character on the lcd
+      // We can initialize the pos integer here because i've added curly
+      // braces around this case block.
+      int pos = map(sysex[8], 0, 127, 2, 20);
+      lcd.setCursor(pos,1);
+      lcd.print("|");
+
+      // Show a > or < if we need to tune up or down.
+      // This will show >|< if we're in tune
+      if (sysex[8]>=62)
+        lcd.print("<");
+      if (sysex[8]<=65) {
+        lcd.setCursor(pos-1,1);
+        lcd.print(">");
+      }
+
+      // Some debug info, print the raw finetune data
+      lcd.setCursor(18,1);
+      lcd.print(sysex[8], HEX);
+
+      // Jump to the first character on the second line of the lcd
+      // Show the note name here
+      lcd.setCursor(0,1);
+      lcd.print(AxeMidi.notes[sysex[6]]);
+
+      return;
     }
+    case SYSEX_AXEFX_PRESET_NAME:
+      // Preset name response, print the preset name on the lcd
+      // Echo? If patch name length <= 8, just return
+      if (length<=8) return;
+
+      // just output the sysex bytes starting from position 6 to the lcd
+      lcd.setCursor(3,0);
+      lcd.print(" ");
+      for(int i=6; i<length && i<20+6; i++) {
+        lcd.print((char)sysex[i]);
+      }
+
+      return;
+
+    case SYSEX_AXEFX_PRESET_CHANGE:
+      // Patch change event!
+
+      // Byte 6 and 7 hold the new patch number (starting at 0)
+      // however these values only count to 127, so values higher
+      // than 0x7F need to be calculated differently
+      Serial.print("Patch change: ");
+      int patchNumber = sysex[6]*128 + sysex[7] + 1;
+      Serial.print(patchNumber);
+      Serial.println("!");
+
+      // Put the new number on the LCD, but prefix the value
+      // with zeros just like the AxeFx does.
+      lcd.setCursor(0,0);
+      if (patchNumber<100)
+        lcd.print("0");
+      if (patchNumber<10)
+        lcd.print("0");
+      lcd.print(patchNumber);
+      lcd.print(" ");
+
+      // We know the preset number, now ask the AxeFx to send us
+      // the preset name as well.
+      AxeMidi.requestPresetName();
+
+      return;
   }
-
-
 
   /*
-  // Keeping this here for a little while, until we move it elsewhere
-  for (int i=0; i<5; ++i) {
-    btnRowUpper[i].btn.update();
-    if (btnRowUpper[i].btn.fallingEdge()) {
-      lcd.setCursor(0,0);
-      lcd.print(i);
-      btnRowUpper[i].ledStatus = !btnRowUpper[i].ledStatus;
-      ledControl.setLed(0, btnRowUpper[i].y, btnRowUpper[i].x, btnRowUpper[i].ledStatus);
-    }
-
-    btnRowLower[i].btn.update();
-    if (btnRowLower[i].btn.fallingEdge()) {
-      lcd.setCursor(0,1);
-      lcd.print(i);
-      btnRowLower[i].ledStatus = !btnRowLower[i].ledStatus;
-      ledControl.setLed(0, btnRowLower[i].y, btnRowLower[i].x, btnRowLower[i].ledStatus);
-    }
-  }*/
-
+  //Some debugging code to just dump the sysex data on the serial line.
+  char buffer[4];
+  Serial.print("Sysex: ");
+  for(int i=0; i<length; ++i) {
+    //itoa(sysex[i],buffer,16);
+    Serial.print(sysex[i], HEX);
+    Serial.print(" ");
+  }
+  Serial.println(" ");
+  for(int i=0; i<length; ++i) {
+    Serial.print((char)sysex[i]);
+    Serial.print(" ");
+  }
+  Serial.println(" ");
+  */
 }
 
 
@@ -257,16 +356,7 @@ void loop() {
  * This method needs to be called first every loop and only once every loop
  * It checks for new data on all the IO, such as buttons, analog devices (ExpPedals) and Midi
  */
-elapsedMicros updateIOTimer;
 void updateIO() {
-  // Debug: output the time it took to do all the other stuff and
-  // start the IO handling again.
-  Serial.print("IO Update started after micros: ");
-  Serial.println(updateIOTimer);
-
-  // Reset the timer
-  updateIOTimer = 0;
-
   // Check for new midi messages
   AxeMidi.handleMidi();
 
@@ -284,10 +374,6 @@ void updateIO() {
   btnBankUp.update();
   btnBankDown.update();
   btnStompBank.update();
-
-  // Debug: output the time it took to update all the IO
-  Serial.print("IO Update took micros: ");
-  Serial.println(updateIOTimer);
 }
 
 /**
@@ -325,8 +411,8 @@ void doBootSplash() {
 
    // Write something on the LCD
   lcd.begin(20, 2);
-  lcd.println(" FCB-Infinity v1.0");
-  lcd.println("         Mackatack");
+  lcd.print("  FCBInfinity v1.0");
+  lcd.print("      by Mackatack");
   /*
   delay(800);
   lcd.clear();

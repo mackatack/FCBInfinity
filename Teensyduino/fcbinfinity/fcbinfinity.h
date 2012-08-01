@@ -14,8 +14,8 @@
   #include <LedControl.h>
   #include <LiquidCrystalFast.h>
   #include <MIDI.h>
-  #include <AxeMidi.h>
-  #include <ExpPedals.h>
+  #include "io_AxeMidi.h"
+  #include "io_ExpPedals.h"
 
   // Pinouts for various IO on the teensy board.
   // See http://www.pjrc.com/teensy/teensyduino.html for more information about the pinout
