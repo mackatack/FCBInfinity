@@ -80,20 +80,20 @@ boolean AxeMidi_Class::hasMessage() {
  * Just send a sysex message via MIDI, but track the checksum in the sysexChecksum variable
  * if m_bSendReceiveChecksummedSysEx is true
  */
-void AxeMidi_Class::sendSysEx(byte length, byte * array) {
+void AxeMidi_Class::sendSysEx(byte length, byte * sysexData) {
   HWSerial.write(0xF0);
-	HWSerial.write(array, length);
+  HWSerial.write(sysexData, length);
 
   // More info on checksumming see:
   // http://wiki.fractalaudio.com/axefx2/index.php?title=MIDI_SysEx
   if (m_bSendReceiveChecksummedSysEx) {
-    int sum = 0xF0;
+    byte sum = 0xF0;
     for (int i=0; i<length; ++i)
-      sum = sum ^ (int)array[i];
+      sum = sum ^ sysexData[i];
     HWSerial.write(sum & 0x7F);
   }
 
-	HWSerial.write(0xF7);
+  HWSerial.write(0xF7);
 }
 
 /**

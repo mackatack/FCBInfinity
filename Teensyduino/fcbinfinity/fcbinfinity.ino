@@ -95,7 +95,7 @@ void setup() {
   // Turn all the leds on that are connected to the MAX chip.
   ledControl.shutdown(0, false);  // turns on display
   ledControl.setIntensity(0, 4);  // 15 = brightest
-  for(int i=0; i<=7; i++) {
+  for(int i=0; i<=7; ++i) {
     ledControl.setDigit(0, i, 8, true);
   }
   Serial.println("- all leds on done");
@@ -218,7 +218,7 @@ void loop() {
 
     static boolean stompTestToggle;
     stompTestToggle = !stompTestToggle;
-    for(int i=0; i<=7; i++) {
+    for(int i=0; i<=7; ++i) {
       if (stompTestToggle)
         ledControl.setDigit(0, i, 8, true);
       else
@@ -298,7 +298,7 @@ void handleMidiSysEx() {
       // just output the sysex bytes starting from position 6 to the lcd
       lcd.setCursor(3,0);
       lcd.print(" ");
-      for(int i=6; i<length && i<20+6; i++) {
+      for(int i=6; i<length && i<20+6; ++i) {
         lcd.print((char)sysex[i]);
       }
 
