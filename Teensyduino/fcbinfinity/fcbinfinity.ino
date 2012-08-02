@@ -187,8 +187,14 @@ void loop() {
   // take action when a button is UNpressed, quite the difference.
   for(int i=0; i<4; ++i) {
     if (btnRowLower[i].btn.fallingEdge()) {
-      // CC 0: 0 sets AxeFx bank to A
+      // CC 0: 0 sets AxeFx bank to A, it might be a solution for the
+      // problem I had when sending PC#2 and the AxeFx jumping to #384 (Bypass)
+      // I'm not quite sure we're required to send this every PC, but we'll test
+      // that later.
+      // Thanks to Slickstring/Reincaster for the hint! :P
       AxeMidi.sendControlChange(0, 0, g_iAxeFxMidiChannel);
+
+      // Send the PC message, i is the button number and add the current bank
       AxeMidi.sendProgramChange(i + 4*g_iPresetBank, g_iAxeFxMidiChannel);
     }
   }
