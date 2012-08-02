@@ -51,13 +51,13 @@ Don't forget that you also need an [USB to Mini-USB cable](http://bin.ilsemedia.
 ![](http://talkingelectronics.com/projects/LogicDesigner/images/7805.gif)
 
 ----------
-## Elco 220uF ##
+## Elco 0.1 uF ##
 [www.conrad.nl](http://www.conrad.nl/ce/nl/product/443987/Alu-elco-220uF35V-Low-ESR/SHOP_AREA_17434&promotionareaSearchDetail=005)  
 
 ![](http://www.conrad.nl/medias/global/ce/4000_4999/4400/4430/4439/443906_BB_00_FB.EPS_250.jpg)
 
 ----------
-## Elco 470uF ##
+## Elco 0.33 uF ##
 [www.conrad.nl](http://www.conrad.nl/ce/nl/product/444020/Alu-elco-470uF35V-Low-ESR/SHOP_AREA_17434&promotionareaSearchDetail=005)  
 
 ![](http://www.conrad.nl/medias/global/ce/4000_4999/4400/4430/4439/443906_BB_00_FB.EPS_250.jpg)
@@ -69,7 +69,8 @@ Don't forget that you also need an [USB to Mini-USB cable](http://bin.ilsemedia.
 ![](http://www.iowacitylist.com/Automotive-Repair-/New-W08G-800-volt-silicon-bridge-rectifier-100-pc-bag-image.jpg)
 
 ----------
-## RGB Red ##
+## RGB Red ##  
+Optional, if you don't want the stompbox-bank/mode switch, just leave it out.  
 [www.conrad.nl](http://www.conrad.nl/ce/nl/product/185353/LED-Full-color-5mm-diffuus/0212268&ref=list)  
 [datasheet](http://www.produktinfo.conrad.com/datenblaetter/175000-199999/185353-da-01-en-FULL_COLOR_RGB_LED_DIFFUS.pdf) 
 
@@ -77,7 +78,9 @@ Don't forget that you also need an [USB to Mini-USB cable](http://bin.ilsemedia.
 
 ----------
 ## Pushbuttons ##
-**4x** R13-85A-05 Pushbutton  
+R13-85A-05 Pushbutton  
+
+These are optional and any other default off, press on push button (non locking) will do. There's room on the PCB to directly connect 4 buttons or leds. On the Teensy there are 8 free ports, so you could add a total of 12 leds or buttons. Or you could just leave these out and only add the LCD to your FCB1010 unit.  
 [www.conrad.nl](http://www.conrad.nl/ce/nl/product/701083/DRUKKNOP-R13-85A-05)  
 [datasheet](http://www.produktinfo.conrad.com/datenblaetter/700000-724999/701083-da-01-en-DRUCKTASTER_R13_85A_05.pdf)  
 
