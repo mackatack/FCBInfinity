@@ -66,6 +66,12 @@ Bounce btnExpPedalRight = mkBounce(24);
 ExpPedals_Class ExpPedal1(A6);  // Analog pin 6 (pin 44 on the Teensy)
 ExpPedals_Class ExpPedal2(A7);  // Analog pin 7 (pin 45 on the Teensy)
 
+// Some important variables we'll need later on and want globally, if we want to
+// access them from any file, externalize them in fcbinfinity.h
+
+int g_iPresetBank = 0;          // The bank controllable by the BankUp and BankDown buttons
+int g_iAxeFxMidiChannel = 1;    // The channel the AxeFx expects to receive incoming messages
+
 
 /**
  * ###########################################################
@@ -116,7 +122,13 @@ void setup() {
   // the setup has completed
   digitalWrite(PIN_ONBOARD_LED, LOW);
   Serial.println("- setup() done");
-}
+
+  // Request the AxeFx to send us the preset name
+  // Later on, we also want to trigger the update for all button states
+  // and scroll to the correct, etc.
+  AxeMidi.requestPresetName();
+
+} // setup()
 
 
 /**
@@ -142,14 +154,14 @@ void loop() {
     setLedDigitValue(ExpPedal1.getValue());
 
     // Send CC# 1 on channel 1, for debugging
-    AxeMidi.sendControlChange(1, ExpPedal1.getValue(), 1);
+    AxeMidi.sendControlChange(1, ExpPedal1.getValue(), g_iAxeFxMidiChannel);
   }
 
   // ExpPedal2 has a new value?
   // Just send the midi message
   if (ExpPedal2.hasChanged()) {
     // Send CC# 2 on channel 1, for debugging
-    AxeMidi.sendControlChange(2, ExpPedal2.getValue(), 1);
+    AxeMidi.sendControlChange(2, ExpPedal2.getValue(), g_iAxeFxMidiChannel);
   }
 
   // Lets check if we received a MIDI message
@@ -161,24 +173,63 @@ void loop() {
       // AxeMidi.getSysExArray();
 
     if (AxeMidi.getType()==SysEx) {
-      // Well well, the Axe is talking to us!
+      // Well well, someone (probably the AxeFx) is talking to us!
       // Keep in mind the any midi messages that we receive might
       // be an echo of a message that we sent ourselves
       handleMidiSysEx();
     }
   }
 
+  // Button 1 to 4 on the bottom row send the ProgramChange message
+  // over midi to select new patches on the AxeFx.
+  // Please note that fallingEdge() detects when the button is pressed
+  // so this will react much faster than some other devices, that only
+  // take action when a button is UNpressed, quite the difference.
+  for(int i=0; i<4; ++i) {
+    if (btnRowLower[i].btn.fallingEdge()) {
+      // CC 0: 0 sets AxeFx bank to A
+      AxeMidi.sendControlChange(0, 0, g_iAxeFxMidiChannel);
+      AxeMidi.sendProgramChange(i + 4*g_iPresetBank, g_iAxeFxMidiChannel);
+    }
+  }
+
+  // button 5 on the lower row toggles X/Y
+  // See the link below for more info about the CC numbers
+  // http://wiki.fractalaudio.com/axefx2/index.php?title=MIDI_CCs_list
+  if (btnRowLower[4].btn.fallingEdge()) {
+    static boolean bXYToggle = false;
+    bXYToggle = !bXYToggle;
+
+    // CC 100 to 119 control all the x/y for all the effects, just toggle them all.
+    // If bXYToggle is true, send 127, otherwise send 0
+    for (int cc=100; cc<=119; ++cc)
+      AxeMidi.sendControlChange(cc, bXYToggle?127:0, g_iAxeFxMidiChannel);
+  }
+
+  // If the bankUp/Down buttons are pressed update the presetBank variable.
+  // Later on we might want to flash preset switching buttons or something and
+  // have a feature where you cycle through banks faster by keeping the button
+  // pressed
+  // For now, KISS :P
+  if (btnBankUp.fallingEdge()) {
+    setLedDigitValue(g_iPresetBank++);
+  }
+  if (btnBankDown.fallingEdge()) {
+    setLedDigitValue(g_iPresetBank--);
+  }
+
+  // ##############################
+  // Some additional io debugging functions below
+
   // Update the button states, when a button is pressed set
   // the LED-Digits to the button id, toggle the indicator led
-  // that is associated with the button and send a ProgramChange
-  // midi message
+  // that is associated with the button
   for(int i=0; i<5; ++i) {
     // Check the upper row of buttons
     if (btnRowUpper[i].btn.fallingEdge()) {
       setLedDigitValue(i+10+1);
       btnRowUpper[i].ledStatus = !btnRowUpper[i].ledStatus;
       ledControl.setLed(0, btnRowUpper[i].x, btnRowUpper[i].y, btnRowUpper[i].ledStatus);
-      AxeMidi.sendProgramChange(i+5, 1);
     }
 
     // Check the lower row of buttons
@@ -186,19 +237,11 @@ void loop() {
       setLedDigitValue(i+20+1);
       btnRowLower[i].ledStatus = !btnRowLower[i].ledStatus;
       ledControl.setLed(0, btnRowLower[i].x, btnRowLower[i].y, btnRowLower[i].ledStatus);
-      AxeMidi.sendProgramChange(i, 1);
     }
   }
 
-  // If the bankUp/Down buttons are pressed, only set the LED-Digits to
-  // read their button id for now.
-  if (btnBankUp.fallingEdge())
-    setLedDigitValue(19);
-  if (btnBankDown.fallingEdge())
-    setLedDigitValue(29);
-
   // If the stompBox button is pressed, just toggle the rgb channels
-  // and toggle all the leds in the system, for debugging
+  // and toggle all the leds in the system
   static int iStompBank = 0;
   if (btnStompBank.fallingEdge()) {
     // Stomp button has been pressed
@@ -224,18 +267,17 @@ void loop() {
       else
         ledControl.setChar(0, i, ' ', false);
     }
-
-    // Also send a sysEx to the AxeFX to request the patch name
-    // AxeMidi.requestPresetName();
   }
-}
+
+} // loop()
 
 /**
  * A seperate function to handle all the midi sysex messages
  * we might receive. Putting this in a separate function allows
  * us to use 'return' in case of errors etc.
  *
- * @TODO add more documentation
+ * @TODO add more documentation and check the manufacturer code
+ * in the SysEx to check if the message really came from the AxeFx
  */
 void handleMidiSysEx() {
   int length = AxeMidi.getData1();
@@ -374,6 +416,7 @@ void updateIO() {
   btnBankUp.update();
   btnBankDown.update();
   btnStompBank.update();
+  btnExpPedalRight.update();
 }
 
 /**
