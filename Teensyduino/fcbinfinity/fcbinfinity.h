@@ -22,8 +22,8 @@
 
   #define PIN_ONBOARD_LED 6
   #define PIN_RGBLED_R 27
-  #define PIN_RGBLED_G 0
-  #define PIN_RGBLED_B 1
+  #define PIN_RGBLED_G 1
+  #define PIN_RGBLED_B 0
 
 
   // This statement makes the ledControl object available throughout the entire
