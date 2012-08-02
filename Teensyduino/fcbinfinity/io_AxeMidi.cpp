@@ -76,6 +76,43 @@ boolean AxeMidi_Class::hasMessage() {
 }
 
 /**
+ * This function tells the AxeFx to switch to a new preset
+ * @TODO calculate the AxeFx bank and send the correct CC#0 value
+ * if iAxeFxPresetNumber > 127
+ */
+void AxeMidi_Class::sendPresetChange(int iAxeFxPresetNumber, int iChannel) {
+  // CC 0: 0 sets AxeFx bank to A, it might be a solution for the
+  // problem I had when sending PC#2 and the AxeFx jumping to #384 (Bypass)
+  // I'm not quite sure we're required to send this every PC, but we'll test
+  // that later.
+  // Thanks to Slickstring/Reincaster for the hint! :P
+
+  // After some testing it seemed that AxeFx > IO > Midi > Mapping Mode was set to
+  // Custom, setting back to None fixed the above problem.
+
+  // It seems the Axe wont do subsequent preset changes
+  // unless we send it some other midi message. Lets just keep this
+  // bank mode switcher code in place for now
+  AxeMidi.sendControlChange(0, 0, iChannel);
+
+  // Send the PC message
+  AxeMidi.sendProgramChange(iAxeFxPresetNumber-1, iChannel);
+}
+
+/**
+ * Tells the AxeFx to switch to either the X or Y mode for
+ * all it's effects.
+ * See the link below for more info about the CC numbers
+ * http://wiki.fractalaudio.com/axefx2/index.php?title=MIDI_CCs_list
+ */
+void AxeMidi_Class::sendToggleXY(boolean bYModeOn, int iChannel) {
+  // CC 100 to 119 control all the x/y for all the effects, just toggle them all.
+  // If bYModeOn is true, send 127, otherwise send 0
+  for (int cc=100; cc<=119; ++cc)
+    AxeMidi.sendControlChange(cc, bYModeOn?127:0, iChannel);
+}
+
+/**
  * Overrides the sendSysEx in MIDI.cpp.
  * Just send a sysex message via MIDI, but track the checksum in the sysexChecksum variable
  * if m_bSendReceiveChecksummedSysEx is true
@@ -97,12 +134,47 @@ void AxeMidi_Class::sendSysEx(byte length, byte * sysexData) {
 }
 
 /**
- * Tell the AxeFx to send the PresetName over Midi
+ * This just sends a bogus message to test if the AxeFx is echoing our messages back
+ * if so, the user should disable thru...
  */
-byte msgRequestPresetName[] = {0x00, 0x01, 0x74, 0x01, 0x0f};
-void AxeMidi_Class::requestPresetName() {
+void AxeMidi_Class::sendLoopbackCheck() {
+  byte msgRequestPresetName[] = {
+    SYSEX_LOOBACK_CHECK_DATA,
+    SYSEX_LOOBACK_CHECK_DATA,
+    SYSEX_LOOBACK_CHECK_DATA,
+    SYSEX_LOOBACK_CHECK_DATA,
+    SYSEX_LOOBACK_CHECK_DATA
+  };
   sendSysEx(5, msgRequestPresetName);
 }
+
+/**
+ * Tell the AxeFx to send the PresetName over Midi
+ */
+void AxeMidi_Class::requestPresetName() {
+  static const byte msgRequestPresetName[] = {
+    SYSEX_AXEFX_MANUFACTURER,
+    SYSEX_AXEFX_MODEL,
+    SYSEX_AXEFX_PRESET_NAME
+  };
+  sendSysEx(5, (byte*)msgRequestPresetName);
+}
+
+
+/**
+ * Tell the AxeFx to send the bypass states for the current preset's effects
+ * http://forum.fractalaudio.com/other-midi-controllers/39161-using-sysex-recall-present-effect-bypass-status-info-available.html
+ */
+
+void AxeMidi_Class::requestBypassStates() {
+  static const byte msgRequestBypassStates[] = {
+    SYSEX_AXEFX_MANUFACTURER,
+    SYSEX_AXEFX_MODEL,
+    SYSEX_AXEFX_GET_PRESET_EFFECT_BLOCKS_AND_CC_AND_BYPASS_STATE
+  };
+  sendSysEx(5, (byte*)msgRequestBypassStates);
+}
+
 
 /**
  * Tell the AxeFx to start the tuner and send us the realtime

@@ -15,12 +15,16 @@
 #include <Wprogram.h>
 #include <MIDI.h>
 
+#define SYSEX_LOOBACK_CHECK_DATA 0x76
+#define SYSEX_AXEFX_MANUFACTURER 0x00, 0x01, 0x74
+#define SYSEX_AXEFX_MODEL 0x03
 
 #define SYSEX_AXEFX_REALTIME_TUNER 0x0D
 #define SYSEX_AXEFX_REALTIME_TEMPO 0x10
 
 #define SYSEX_AXEFX_PRESET_NAME 0x0F
 #define SYSEX_AXEFX_PRESET_CHANGE 0x14
+#define SYSEX_AXEFX_GET_PRESET_EFFECT_BLOCKS_AND_CC_AND_BYPASS_STATE 0x0E
 
 //
 
@@ -32,7 +36,11 @@ class AxeMidi_Class: public MIDI_Class {
 
     void startTuner();
     void requestPresetName();
+    void requestBypassStates();
     void sendSysEx(byte length, byte * array);
+    void sendPresetChange(int iAxeFxPresetNumber, int iChannel);
+    void sendToggleXY(boolean bYModeOn, int iChannel);
+    void sendLoopbackCheck();
 
     /* Check for new incoming MIDI messages, call this once every loop cycle */
     boolean handleMidi();

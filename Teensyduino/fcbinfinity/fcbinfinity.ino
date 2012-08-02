@@ -69,9 +69,16 @@ ExpPedals_Class ExpPedal2(A7);  // Analog pin 7 (pin 45 on the Teensy)
 // Some important variables we'll need later on and want globally, if we want to
 // access them from any file, externalize them in fcbinfinity.h
 
-int g_iPresetBank = 0;          // The bank controllable by the BankUp and BankDown buttons
-int g_iAxeFxMidiChannel = 1;    // The channel the AxeFx expects to receive incoming messages
+int     g_iCurrentPreset = 0;       // Here we track the current preset, in case we want to use it
+int     g_iPresetBank = 0;          // The bank controllable by the BankUp and BankDown buttons
+int     g_iAxeFxMidiChannel = 1;    // The channel the AxeFx expects to receive incoming messages
+int     g_iStompBoxMode = 0;        // The current stompboxmode, see the loop() function below
+boolean g_bXYToggle = false;        // The X/Y toggler
 
+// The defines for the stompbox modes, see the switch clause below
+#define STOMP_MODE_NORMAL     0
+#define STOMP_MODE_10STOMPS   1
+#define STOMP_MODE_LOOPER     2
 
 /**
  * ###########################################################
@@ -109,9 +116,9 @@ void setup() {
   // Set the pins for the Stompbox bank RGB-led to output (see fcbinfinity.h for pinout)
   // the PIN_RGBLED_x pins are PWM pins, so an AnalogWrite() will set the led
   // intensity for this led.
-  pinMode(PIN_RGBLED_R, OUTPUT); analogWrite(PIN_RGBLED_R, 50);
-  pinMode(PIN_RGBLED_G, OUTPUT); analogWrite(PIN_RGBLED_G, 50);
-  pinMode(PIN_RGBLED_B, OUTPUT); analogWrite(PIN_RGBLED_B, 50);
+  pinMode(PIN_RGBLED_R, OUTPUT);
+  pinMode(PIN_RGBLED_G, OUTPUT);
+  pinMode(PIN_RGBLED_B, OUTPUT);
   Serial.println("- rgb leds on done");
 
   // Perform the bootsplash animation
@@ -123,10 +130,21 @@ void setup() {
   digitalWrite(PIN_ONBOARD_LED, LOW);
   Serial.println("- setup() done");
 
+  // First let's find out if the AxeFx has Midi Thru turned on.
+  // We dont want our own messages thrown back at us.
+  AxeMidi.sendLoopbackCheck();
+
   // Request the AxeFx to send us the preset name
   // Later on, we also want to trigger the update for all button states
   // and scroll to the correct, etc.
   AxeMidi.requestPresetName();
+
+  // Set the bank to the initial presetbank, probably 0
+  setLedDigitValue(g_iPresetBank);
+
+  // Set the StompBoxMode to the normal mode, this just
+  // sets the led to the correct color
+  setStompBoxMode(STOMP_MODE_NORMAL);
 
 } // setup()
 
@@ -142,27 +160,6 @@ void loop() {
 
   // Check all the connected inputs; buttons, expPedals, MIDI, etc. for new data or state changes
   updateIO();
-
-  // Play around with the expression pedals a little
-  // ExpPedal1 has a new value?
-  // Send some debug data over the serial communications, set the value on the LED-digits and send a midi message
-  if (ExpPedal1.hasChanged()) {
-    Serial.print("ExpPedal1: ");
-    Serial.print(ExpPedal1.getValue());
-    Serial.print(", raw: ");
-    Serial.println(ExpPedal1.getRawValue());
-    setLedDigitValue(ExpPedal1.getValue());
-
-    // Send CC# 1 on channel 1, for debugging
-    AxeMidi.sendControlChange(1, ExpPedal1.getValue(), g_iAxeFxMidiChannel);
-  }
-
-  // ExpPedal2 has a new value?
-  // Just send the midi message
-  if (ExpPedal2.hasChanged()) {
-    // Send CC# 2 on channel 1, for debugging
-    AxeMidi.sendControlChange(2, ExpPedal2.getValue(), g_iAxeFxMidiChannel);
-  }
 
   // Lets check if we received a MIDI message
   if (AxeMidi.hasMessage()) {
@@ -180,49 +177,123 @@ void loop() {
     }
   }
 
-  // Button 1 to 4 on the bottom row send the ProgramChange message
-  // over midi to select new patches on the AxeFx.
-  // Please note that fallingEdge() detects when the button is pressed
-  // so this will react much faster than some other devices, that only
-  // take action when a button is UNpressed, quite the difference.
-  for(int i=0; i<4; ++i) {
-    if (btnRowLower[i].btn.fallingEdge()) {
-      // CC 0: 0 sets AxeFx bank to A, it might be a solution for the
-      // problem I had when sending PC#2 and the AxeFx jumping to #384 (Bypass)
-      // I'm not quite sure we're required to send this every PC, but we'll test
-      // that later.
-      // Thanks to Slickstring/Reincaster for the hint! :P
-      AxeMidi.sendControlChange(0, 0, g_iAxeFxMidiChannel);
-
-      // Send the PC message, i is the button number and add the current bank
-      AxeMidi.sendProgramChange(i + 4*g_iPresetBank, g_iAxeFxMidiChannel);
-    }
+  // Play around with the expression pedals a little
+  // ExpPedal1 has a new value?
+  // Send some debug data over the serial communications, set the value on the LED-digits and send a midi message
+  if (ExpPedal1.hasChanged()) {
+    // Send CC# 1 on channel 1, for debugging
+    AxeMidi.sendControlChange(1, ExpPedal1.getValue(), g_iAxeFxMidiChannel);
   }
 
-  // button 5 on the lower row toggles X/Y
-  // See the link below for more info about the CC numbers
-  // http://wiki.fractalaudio.com/axefx2/index.php?title=MIDI_CCs_list
+  // ExpPedal2 has a new value?
+  // Just send the midi message
+  if (ExpPedal2.hasChanged()) {
+    // Send CC# 2 on channel 1, for debugging
+    AxeMidi.sendControlChange(2, ExpPedal2.getValue(), g_iAxeFxMidiChannel);
+  }
+
+  // button 5 on the lower row toggles X/Y, it does that in any mode, so we can just
+  // leave this outside of the StompBoxMode logic
   if (btnRowLower[4].btn.fallingEdge()) {
-    static boolean bXYToggle = false;
-    bXYToggle = !bXYToggle;
-
-    // CC 100 to 119 control all the x/y for all the effects, just toggle them all.
-    // If bXYToggle is true, send 127, otherwise send 0
-    for (int cc=100; cc<=119; ++cc)
-      AxeMidi.sendControlChange(cc, bXYToggle?127:0, g_iAxeFxMidiChannel);
+    g_bXYToggle = !g_bXYToggle;
+    AxeMidi.sendToggleXY(g_bXYToggle, g_iAxeFxMidiChannel);
+    return;
   }
 
-  // If the bankUp/Down buttons are pressed update the presetBank variable.
-  // Later on we might want to flash preset switching buttons or something and
-  // have a feature where you cycle through banks faster by keeping the button
-  // pressed
-  // For now, KISS :P
-  if (btnBankUp.fallingEdge()) {
-    setLedDigitValue(g_iPresetBank++);
+  // Right, since we're jumping into the stompbox-mode matter, let me quickly explain what
+  // I'm trying to accomplish with this. Lets say you have a song where you're only using one preset
+  // having 4 buttons to switch presets you wont even use is kind of useless, what if we could use those
+  // to control effects as well. The code below allows us to do so.
+  switch (g_iStompBoxMode) {
+
+    case STOMP_MODE_NORMAL: {
+      // This StompBoxMode is the normal one where the top 5 buttons toggle
+      // some effects, the 1-4 bottom buttons control the preset changes and
+      // the 5th button controls the X/Y switch. BankUp/Down control the bank
+      // for the preset switching on the FCBInfinity
+
+      // If the stompBox button is pressed, we want to switch to STOMP_MODE_10STOMPS
+      // Just return, because all the remaining code below is useless now.
+      // Later on, a long press will change us to looper mode
+      if (btnStompBank.fallingEdge()) {
+        setStompBoxMode(STOMP_MODE_10STOMPS);
+        return;
+      }
+
+      // Button 1 to 4 on the bottom row send the ProgramChange message over midi to select new
+      // presets on the AxeFx in this mode.
+      // Please note that fallingEdge() detects when the button is pressed so this will react much
+      // faster than some other devices, that only take action when a button is UNpressed, quite the difference.
+      for(int i=0; i<4; ++i) {
+        if (btnRowLower[i].btn.fallingEdge()) {
+          // Send the PC message, i is the button number and add the current bank
+          g_iCurrentPreset = i + 4*g_iPresetBank + 1;
+          AxeMidi.sendPresetChange(g_iCurrentPreset, g_iAxeFxMidiChannel);
+          return;
+        }
+      }
+
+      // If the bankUp/Down buttons are pressed update the presetBank variable.
+      // Later on we might want to flash preset switching buttons or something and have a feature where you
+      // cycle through banks faster by keeping the button pressed
+      // For now, KISS :P
+      if (btnBankUp.fallingEdge()) {
+        ++g_iPresetBank;
+        if (g_iPresetBank>999) g_iPresetBank = 999;
+        setLedDigitValue(g_iPresetBank);
+        return;
+      }
+      if (btnBankDown.fallingEdge()) {
+        --g_iPresetBank;
+        if (g_iPresetBank<0) g_iPresetBank=0;
+        setLedDigitValue(g_iPresetBank);
+        return;
+      }
+
+      // @TODO: implement the stompbox button logic
+
+    } // end of STOMP_MODE_NORMAL
+    break;
+
+    case STOMP_MODE_10STOMPS: {
+      // In this mode the RGB-led is colored blue and all the upper and lower buttons
+      // toggle effect bypasses, the BankUp/Down now just select the next or previous
+      // preset.
+
+      // If the stompBox button is pressed, we want to switch back to STOMP_MODE_NORMAL
+      // Just return, because all the remaining code below is useless now.
+      // Later on, a long press will change us to looper mode
+      if (btnStompBank.fallingEdge()) {
+        setStompBoxMode(STOMP_MODE_NORMAL);
+        return;
+      }
+
+      // In this mode the bankUp/Down buttons react a little different; instead of changing banks
+      // they will just move to the next or previous preset on the AxeFx. We'll calculate the new
+      // bank automatically when we receive the preset changed SysEx from the AxeFx.
+      if (btnBankUp.fallingEdge()) {
+        AxeMidi.sendPresetChange(g_iCurrentPreset+1, g_iAxeFxMidiChannel);
+        return;
+      }
+      if (btnBankDown.fallingEdge()) {
+        AxeMidi.sendPresetChange(g_iCurrentPreset-1, g_iAxeFxMidiChannel);
+        return;
+      }
+
+      // @TODO: implement the stompbox button logic
+
+    } // end of STOMP_MODE_10STOMPS
+    break;
+
+    case STOMP_MODE_LOOPER: {
+      // This mode changes the top buttons into the controls for the looper in the AxeFx
+      // I will implement this later...
+
+    } // end of STOMP_MODE_LOOPER
+    break;
+
   }
-  if (btnBankDown.fallingEdge()) {
-    setLedDigitValue(g_iPresetBank--);
-  }
+
 
   // ##############################
   // Some additional io debugging functions below
@@ -233,45 +304,16 @@ void loop() {
   for(int i=0; i<5; ++i) {
     // Check the upper row of buttons
     if (btnRowUpper[i].btn.fallingEdge()) {
-      setLedDigitValue(i+10+1);
       btnRowUpper[i].ledStatus = !btnRowUpper[i].ledStatus;
       ledControl.setLed(0, btnRowUpper[i].x, btnRowUpper[i].y, btnRowUpper[i].ledStatus);
+      return;
     }
 
     // Check the lower row of buttons
     if (btnRowLower[i].btn.fallingEdge()) {
-      setLedDigitValue(i+20+1);
       btnRowLower[i].ledStatus = !btnRowLower[i].ledStatus;
       ledControl.setLed(0, btnRowLower[i].x, btnRowLower[i].y, btnRowLower[i].ledStatus);
-    }
-  }
-
-  // If the stompBox button is pressed, just toggle the rgb channels
-  // and toggle all the leds in the system
-  static int iStompBank = 0;
-  if (btnStompBank.fallingEdge()) {
-    // Stomp button has been pressed
-    iStompBank++;
-    iStompBank %= 3;
-    analogWrite(PIN_RGBLED_R, 0);
-    analogWrite(PIN_RGBLED_G, 0);
-    analogWrite(PIN_RGBLED_B, 0);
-    switch (iStompBank) {
-      case 0:
-        analogWrite(PIN_RGBLED_R, 60); break;
-      case 1:
-        analogWrite(PIN_RGBLED_G, 60); break;
-      case 2:
-        analogWrite(PIN_RGBLED_B, 60); break;
-    }
-
-    static boolean stompTestToggle;
-    stompTestToggle = !stompTestToggle;
-    for(int i=0; i<=7; ++i) {
-      if (stompTestToggle)
-        ledControl.setDigit(0, i, 8, true);
-      else
-        ledControl.setChar(0, i, ' ', false);
+      return;
     }
   }
 
@@ -346,7 +388,7 @@ void handleMidiSysEx() {
       // just output the sysex bytes starting from position 6 to the lcd
       lcd.setCursor(3,0);
       lcd.print(" ");
-      for(int i=6; i<length && i<20+6; ++i) {
+      for(int i=6; i<length && i<20+6-4; ++i) {
         lcd.print((char)sysex[i]);
       }
 
@@ -359,43 +401,120 @@ void handleMidiSysEx() {
       // however these values only count to 127, so values higher
       // than 0x7F need to be calculated differently
       Serial.print("Patch change: ");
-      int patchNumber = sysex[6]*128 + sysex[7] + 1;
-      Serial.print(patchNumber);
+      g_iCurrentPreset = sysex[6]*128 + sysex[7] + 1;
+      g_iPresetBank = (g_iCurrentPreset-1)/4;
+      setLedDigitValue(g_iPresetBank);
+
+      Serial.print(g_iCurrentPreset);
       Serial.println("!");
 
       // Put the new number on the LCD, but prefix the value
       // with zeros just like the AxeFx does.
       lcd.setCursor(0,0);
-      if (patchNumber<100)
+      if (g_iCurrentPreset<100)
         lcd.print("0");
-      if (patchNumber<10)
+      if (g_iCurrentPreset<10)
         lcd.print("0");
-      lcd.print(patchNumber);
+      lcd.print(g_iCurrentPreset);
       lcd.print(" ");
 
       // We know the preset number, now ask the AxeFx to send us
       // the preset name as well.
       AxeMidi.requestPresetName();
 
+      // Also ask the AxeFx to send us the effect bypass states
+      AxeMidi.requestBypassStates();
+
+      return;
+
+    case SYSEX_AXEFX_GET_PRESET_EFFECT_BLOCKS_AND_CC_AND_BYPASS_STATE:
+      // We received the current states of the effects.
+      // The sysex will contain the following data
+      // see: http://forum.fractalaudio.com/other-midi-controllers/39161-using-sysex-recall-present-effect-bypass-status-info-available.html
+      // 0xdd effect ID LS nibble
+      // 0xdd effect ID MS nibble
+      // 0xdd bypass CC# LS nibble
+      // 0xdd bypass CC# MS nibble
+      // 0xdd bypass state: 0=bypassed; 1=not bypassed
+
+      // Some debug code until we figure out what all this means :P
+      Serial.println("Preset effect states:");
+      for(int i=6; i<length-4; i+=5) {
+        Serial.print(" - Effect ");
+        Serial.print(sysex[i]);
+        Serial.print(" ");
+        Serial.print(sysex[i+1]);
+        Serial.print(", cc");
+        Serial.print(sysex[i+2]);
+        Serial.print(" ");
+        Serial.print(sysex[i+3]);
+        Serial.print(", state: ");
+        Serial.print(sysex[i+4]);
+        Serial.println(".");
+      }
+      Serial.println("End effect states");
+
+      break;
+
+    case SYSEX_LOOBACK_CHECK_DATA:
+      // Oof, midi thru is enabled on the AxeFx, send a message to the user that they
+      // need to disable it.
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("#WARNING# Disable   Midi Thru on AxeFx");
+      delay(5000);
+      lcd.clear();
+      lcd.setCursor(0,0);
+
       return;
   }
 
-  /*
-  //Some debugging code to just dump the sysex data on the serial line.
+  // Some debugging code to just dump the sysex data on the serial line.
+  // This is only reached when the above code doesn't handle the sysex
   char buffer[4];
-  Serial.print("Sysex: ");
+  Serial.print("Sysex HEX: ");
   for(int i=0; i<length; ++i) {
-    //itoa(sysex[i],buffer,16);
     Serial.print(sysex[i], HEX);
     Serial.print(" ");
   }
   Serial.println(" ");
-  for(int i=0; i<length; ++i) {
-    Serial.print((char)sysex[i]);
-    Serial.print(" ");
+}
+
+/**
+ * Changes the current StompBoxMode and lights up the RGB-led
+ * to set the current mode. See the loop() function for more info
+ */
+void setStompBoxMode(int iNewMode) {
+  // set the new mode
+  g_iStompBoxMode = iNewMode;
+
+  // Change the RGB led to reflect the new mode.
+  switch (g_iStompBoxMode) {
+    case STOMP_MODE_NORMAL:
+      setRGBLed(0, 0, 0);
+      lcd.setCursor(0,1);
+      lcd.print("Mode: Normal        ");
+      break;
+    case STOMP_MODE_10STOMPS:
+      setRGBLed(0, 0, 50);
+      lcd.setCursor(0,1);
+      lcd.print("Mode: 10 stomps     ");
+      break;
+    case STOMP_MODE_LOOPER:
+      setRGBLed(50, 0, 0);
+      lcd.setCursor(0,1);
+      lcd.print("Mode: Looper        ");
+      break;
   }
-  Serial.println(" ");
-  */
+}
+
+/**
+ * Sets the RGB-Led to a new color.
+ */
+void setRGBLed(int r, int g, int b) {
+  analogWrite(PIN_RGBLED_R, r);
+  analogWrite(PIN_RGBLED_G, g);
+  analogWrite(PIN_RGBLED_B, b);
 }
 
 
@@ -462,11 +581,10 @@ void doBootSplash() {
   lcd.begin(20, 2);
   lcd.print("  FCBInfinity v1.0");
   lcd.print("      by Mackatack");
-  /*
+
   delay(800);
   lcd.clear();
   lcd.setCursor(0,0);
-  */
 }
 
 /**
