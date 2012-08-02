@@ -80,7 +80,17 @@ Optional, if you don't want the stompbox-bank/mode switch, just leave it out.
 ## Pushbuttons ##
 R13-85A-05 Pushbutton  
 
-These are optional and any other default off, press on push button (non locking) will do. There's room on the PCB to directly connect 4 buttons or leds. On the Teensy there are 8 free ports, so you could add a total of 12 leds or buttons. Or you could just leave these out and only add the LCD to your FCB1010 unit.  
+These are optional and any other default off, press on push button (non locking) will do. There's room on the PCB to directly connect 4 buttons or leds. On the Teensy there are 8 free ports, so you could add a total of 12 leds or buttons. Or you could just leave these out and only add the LCD to your FCB1010 unit. 
+
+*Here's how I will be using these 12 ports to give you an idea of the possibilities:*  
+- A button to control stompbox-bank/mode switching (RGB used as indicator)   
+- A button underneath the right ExpPedal to toggle the effect it controls  
+- A button for Tap Tempo  
+- A led to indicate current Tap Tempo (flashing on Realtime SysEx from AxeFx)  
+- A button to enable the Tuner/Mute (no Led needed because Tuner is on the LCD)  
+- 7 Free ports :P
+
+ 
 [www.conrad.nl](http://www.conrad.nl/ce/nl/product/701083/DRUKKNOP-R13-85A-05)  
 [datasheet](http://www.produktinfo.conrad.com/datenblaetter/700000-724999/701083-da-01-en-DRUCKTASTER_R13_85A_05.pdf)  
 
