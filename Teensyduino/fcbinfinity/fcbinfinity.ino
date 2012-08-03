@@ -450,6 +450,50 @@ void handleMidiSysEx() {
         Serial.print(sysex[i+3]);
         Serial.print(", state: ");
         Serial.print(sysex[i+4]);
+
+        // Add the two bytes together and compare with the defines in AxeMidi.h
+        // Lets find out which effect it is.
+        switch (sysex[i] << 8 | sysex[i+1]) {
+          case SYSEX_AXEFX_EFFECTID_Drive1:
+            Serial.print(" Drive1");
+            break;
+          case SYSEX_AXEFX_EFFECTID_Drive2:
+            Serial.print(" Drive2");
+            break;
+          case SYSEX_AXEFX_EFFECTID_Pitch:
+            Serial.print(" Pitch1");
+            break;
+          case SYSEX_AXEFX_EFFECTID_Wah1:
+            Serial.print(" Wah1");
+            break;
+          case SYSEX_AXEFX_EFFECTID_Delay1:
+            Serial.print(" Delay1");
+            break;
+          case SYSEX_AXEFX_EFFECTID_Delay2:
+            Serial.print(" Delay2");
+            break;
+          case SYSEX_AXEFX_EFFECTID_MultiDelay1:
+            Serial.print(" MultiDelay1");
+            break;
+          case SYSEX_AXEFX_EFFECTID_MultiDelay2:
+            Serial.print(" MultiDelay2");
+            break;
+          case SYSEX_AXEFX_EFFECTID_Flanger1:
+            Serial.print(" Flanger1");
+            break;
+          case SYSEX_AXEFX_EFFECTID_Flanger2:
+            Serial.print(" Flanger2");
+            break;
+          case SYSEX_AXEFX_EFFECTID_Phaser1:
+            Serial.print(" Phaser1");
+            break;
+          case SYSEX_AXEFX_EFFECTID_Phaser2:
+            Serial.print(" Phaser2");
+            break;
+          default:
+            Serial.print(" Unknown effect")
+        }
+
         Serial.println(".");
       }
       Serial.println("End effect states");
@@ -597,5 +641,5 @@ void doBootSplash() {
  */
 Bounce mkBounce(int pin) {
   pinMode(pin, INPUT_PULLUP);
-  return Bounce(pin, 10);
+  return Bounce(pin, 30);
 }
