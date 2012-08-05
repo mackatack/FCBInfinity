@@ -21,6 +21,7 @@
 #include <EEPROM.h>
 
 #include "utils_FCBSettings.h"
+#include "utils_FCBTimer.h"
 
 #include "io_ExpPedals.h"
 #include "io_AxeMidi.h"
@@ -80,6 +81,20 @@ boolean g_bXYToggle = false;        // The X/Y toggler
 #define STOMP_MODE_10STOMPS   1
 #define STOMP_MODE_LOOPER     2
 
+
+
+void timerCallbackRGBFlashOff(FCBTimer*) {
+  Serial.println("timerCallbackRGBFlashOff");
+  analogWrite(PIN_RGBLED_B, 0);
+}
+void timerCallbackRGBFlashOn(FCBTimer*) {
+  Serial.println("timerCallbackRGBFlashOn");
+  analogWrite(PIN_RGBLED_B, 50);
+  FCBTimerManager::addTimeout(50, &timerCallbackRGBFlashOff);
+}
+
+
+
 /**
  * ###########################################################
  * setup()
@@ -101,7 +116,8 @@ void setup() {
   AxeMidi.begin(MIDI_CHANNEL_OMNI);
   AxeMidi.turnThruOff();
   // The AxeFX-II wants checksummed sysex messages, set this to false
-  // if you use an Ultra or older model.
+  // if you use an Ultra or older model. We might be able to detect this
+  // automatically by analyzing the SysEx model number byte.
   AxeMidi.setSendReceiveChecksummedSysEx(true);
   Serial.println("- midi setup done");
 
@@ -134,10 +150,11 @@ void setup() {
   // We dont want our own messages thrown back at us.
   AxeMidi.sendLoopbackCheck();
 
-  // Request the AxeFx to send us the preset name
+  // Request the AxeFx to send us the preset number, we will retrieve
+  // the preset name when we receive the preset number
   // Later on, we also want to trigger the update for all button states
   // and scroll to the correct, etc.
-  AxeMidi.requestPresetName();
+  AxeMidi.requestPresetNumber();
 
   // Set the bank to the initial presetbank, probably 0
   setLedDigitValue(g_iPresetBank);
@@ -146,7 +163,11 @@ void setup() {
   // sets the led to the correct color
   setStompBoxMode(STOMP_MODE_NORMAL);
 
+  // Repeat forever
+  FCBTimerManager::addInterval(750, 5, &timerCallbackRGBFlashOn);
+
 } // setup()
+
 
 
 /**
@@ -157,6 +178,18 @@ void setup() {
  * also where we update the displays, leds and send midi.
  */
 void loop() {
+
+  // Process all the timers in our FCBTimerManager, this checks if we
+  // have registered a timeout anywhere in the project and calls the
+  // callback function if the timeout has expired. This is a neat way
+  // to flash leds and do some repeated actions, without all the hassle.
+  static elapsedMicros timerUpdate;
+  if (timerUpdate>1000) {
+    // There's no need to run the timers every single loop though,
+    // only call it every ms.
+    timerUpdate = 0;
+    FCBTimerManager::processTimers();
+  }
 
   // Check all the connected inputs; buttons, expPedals, MIDI, etc. for new data or state changes
   updateIO();
@@ -440,7 +473,18 @@ void handleMidiSysEx() {
       // Some debug code until we figure out what all this means :P
       Serial.println("Preset effect states:");
       for(int i=6; i<length-4; i+=5) {
+
+        int effectID = sysex[i+1];
+        if (sysex[i]>0)
+          effectID += 128 + sysex[i];
+
         Serial.print(" - Effect ");
+        Serial.print(effectID);
+        Serial.print(" ");
+        Serial.print(sysex[i] << 6 | sysex[i+1] << 1);
+        Serial.print(" ");
+        Serial.print(sysex[i+1] << 7 | sysex[i]);
+        Serial.print(" ");
         Serial.print(sysex[i]);
         Serial.print(" ");
         Serial.print(sysex[i+1]);
@@ -453,7 +497,7 @@ void handleMidiSysEx() {
 
         // Add the two bytes together and compare with the defines in AxeMidi.h
         // Lets find out which effect it is.
-        switch (sysex[i] << 8 | sysex[i+1]) {
+        switch (effectID) {
           case SYSEX_AXEFX_EFFECTID_Drive1:
             Serial.print(" Drive1");
             break;
@@ -491,7 +535,7 @@ void handleMidiSysEx() {
             Serial.print(" Phaser2");
             break;
           default:
-            Serial.print(" Unknown effect")
+            Serial.print(" Unknown effect");
         }
 
         Serial.println(".");
