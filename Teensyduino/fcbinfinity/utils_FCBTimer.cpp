@@ -102,7 +102,10 @@ void FCBTimerManager::processTimers() {
 	while(curr>0);
 }
 
-void removeTimer(void (*func)(FCBTimer*)) {
+//
+// Removes a timer from the manager. It deletes all the timers with a reference
+// to the specified callback
+void FCBTimerManager::removeTimer(void (*func)(FCBTimer*)) {
   // Return if there are no active timers
   if (head == 0)
     return;
