@@ -1,17 +1,17 @@
 #include <Wprogram.h>
+#include "utils_FCBLinkedList.h"
 #include "utils_FCBTimer.h"
 
 // @TODO: add documentation and code cleanup
 
-FCBTimer* FCBTimerManager::head = NULL;
-FCBTimer* FCBTimerManager::last = NULL;
+FCBLinkedList<FCBTimer> * FCBTimerManager::list = new FCBLinkedList<FCBTimer>;
 
+// Initialization of the FCBTimer linkedlist entry
 FCBTimer::FCBTimer(int interval, int numrepeats, void (*callback)(FCBTimer*)) {
   m_fpCallback = callback;
   m_iInterval = interval;
   m_iNumRepeats = numrepeats;
   m_lExpires = millis() + interval;
-  next = NULL;
 }
 
 //
@@ -28,13 +28,7 @@ void FCBTimerManager::addInterval(int interval, void (*func)(FCBTimer*)) {
 // Add a new timer that calls the callback function for numRepeats times
 void FCBTimerManager::addInterval(int interval, int numRepeats, void (*func)(FCBTimer*)) {
   FCBTimer * timer = new FCBTimer(interval, numRepeats, func);
-	if (head==NULL) {
-		head = timer;
-    last = timer;
-  } else {
-    last->next = timer;
-  }
-	last = timer;
+  list->addItem(timer);
 }
 
 //
@@ -45,19 +39,17 @@ void FCBTimerManager::addInterval(int interval, int numRepeats, void (*func)(FCB
 // no expired timers. For now just keep it simple.
 void FCBTimerManager::processTimers() {
   // Return if there are no active timers
-  if (head == 0)
+  if (list->isEmpty())
     return;
 
-	FCBTimer * curr = head;
-	FCBTimer * prev = NULL;
-
   // Loop through all the timer objects in the linked list
-	do {
+	FCBTimer * curr;
+  list->reset();
+  while((curr = list->current()) != NULL) {
     // Has the current timer expired?
 		if (curr->m_lExpires > millis()) {
       // The timer hasn't expired, just continue to the next entry
-			prev = curr;
-			curr = curr->next;
+			list->next();
       continue;
     }
 
@@ -70,36 +62,18 @@ void FCBTimerManager::processTimers() {
 
     if (curr->m_iNumRepeats==0) {
       // Timer has no more repetitions, delete it from the linkedlist
-
-      // In case this isn't the head object, set the 'next' pointer
-      // of the previous timer to the next timer of this object :P
-      if (prev!=NULL)
-        prev->next = curr->next;
-
-      // In case the current timer entry is the head of the linkedlist
-      // set the head to the next entry
-      if (head == curr)
-        head=curr->next;
-
-      // Same goes for the last entry
-      if (last == curr)
-        last=prev;
-
-      // Temporarely store the pointer to this timer,
-      // so we can update the curr pointer and delete the
-      // expired timer.
-      FCBTimer * dTimer = curr;
-      curr = curr->next;
-      delete dTimer;
+      // Internally the linked list will clean up the linked object
+      // and moves the pointer to the next entry, so no need
+      // to delete and call next()
+      list->removeCurrent();
+      continue;
     }
-    else {
-      // Timer still has repetitions, update the new expiration
-      curr->m_lExpires = millis() + curr->m_iInterval;
-      prev = curr;
-      curr = curr->next;
-    }
-	}
-	while(curr>0);
+
+    // Timer still has repetitions, update the new expiration
+    // and move on to the next entry in the linkedlist
+    curr->m_lExpires = millis() + curr->m_iInterval;
+    list->next();
+  }
 }
 
 //
@@ -107,50 +81,22 @@ void FCBTimerManager::processTimers() {
 // to the specified callback
 void FCBTimerManager::removeTimer(void (*func)(FCBTimer*)) {
   // Return if there are no active timers
-  if (head == 0)
+  if (list->isEmpty())
     return;
 
-	FCBTimer * curr = head;
-	FCBTimer * prev = NULL;
-
   // Loop through all the timer objects in the linked list
-	do {
-    // Function pointer doesnt match? continue
+	FCBTimer * curr;
+  list->reset();
+  while((curr = list->current()) != NULL) {
+    // Function pointer doesnt match? continue to next entry
     if (curr->m_fpCallback != func) {
-      prev = curr;
-      curr = curr->next;
+      list->next();
       continue;
     }
 
-    // Function pointer does match
-    // In case this isn't the head object, set the 'next' pointer
-    // of the previous timer to the next timer of this object :P
-    if (prev!=NULL)
-      prev->next = curr->next;
-
-    // In case the current timer entry is the head of the linkedlist
-    // set the head to the next entry
-    if (head == curr)
-      head=curr->next;
-
-    // Same goes for the last entry
-    if (last == curr)
-      last=prev;
-
-    // Temporarely store the pointer to this timer,
-    // so we can update the curr pointer and delete the
-    // expired timer.
-    FCBTimer * dTimer = curr;
-    curr = curr->next;
-    delete dTimer;
+    // Function pointer does match, remove the entry
+    list->removeCurrent();
 	}
-	while(curr>0);
-}
-
-//
-// Returns true if the manager still has active timers
-bool FCBTimerManager::hasTimers() {
-  return head>0;
 }
 
 // Marty McFly's secret function

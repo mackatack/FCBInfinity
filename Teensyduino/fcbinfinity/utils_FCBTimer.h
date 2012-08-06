@@ -15,6 +15,7 @@
 #define FCBInfinity_TimerH
 
 #include <Wprogram.h>
+#include "utils_FCBLinkedList.h"
 
 /**
  *  The timerEntry struct this is actually a node in a linked list.
@@ -25,7 +26,6 @@ struct FCBTimer {
     int m_iInterval;                    // In case of a repeating timer, what is the interval
     int m_iNumRepeats;                  // In case of a repeating timer, how many times will it repeat
     void (*m_fpCallback)( FCBTimer* );  // The function pointer to the callback that needs to be called.
-    FCBTimer * next;                    // The next timer in the linkedlist
 };
 
 /**
@@ -49,7 +49,7 @@ struct FCBTimer {
  * FCBTimerManager::addTimeout(1000, &callback);
  * // This will call the callback() function after 1000 msec.
  */
-class FCBTimerManager {
+class FCBTimerManager  {
 
   public:
     /**
@@ -60,17 +60,10 @@ class FCBTimerManager {
     /**
      * Returns true if the manager still has active timers
      */
-    static bool hasTimers();
+    static bool hasTimers() {
+      return !list->isEmpty();
+    }
 
-  protected:
-
-    static FCBTimer * head;   // The first entry in the linked list
-    static FCBTimer * last;   // The last entry in the linked list
-
-    // Contructor is private so this is a singleton
-    FCBTimerManager();
-
-  public:
     /**
      * Add a new timer that calls the callback function once and then stops
      */
@@ -95,6 +88,16 @@ class FCBTimerManager {
      * If only this would work! :(
      */
     static void backToTheFuture();
+
+  protected:
+
+    /**
+     * Static linkedlist of FCBTimer structs
+     */
+    static FCBLinkedList<FCBTimer> * list;
+
+    // Contructor is private so this is a singleton
+    FCBTimerManager();
 
 };
 
