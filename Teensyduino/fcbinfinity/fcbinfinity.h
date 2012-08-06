@@ -7,8 +7,8 @@
  * Most of the objects declared below are initialized in fcbinfinity.ino.
  */
 
-#ifndef FCBInfinity_Main_H
-#define FCBInfinity_Main_H
+#ifndef FCBINFINITY_MAIN_H
+#define FCBINFINITY_MAIN_H
 
   #include <Bounce.h>
   #include <LedControl.h>
@@ -71,5 +71,8 @@
   extern ExpPedals_Class ExpPedal1;
   extern ExpPedals_Class ExpPedal2;
 
+  // A neat little debugging function that just dumps all bytes of a byte array to
+  // the serial line
+  extern void bytesHexDump(byte * bytes, int length);
 
-#endif
+#endif //FCBINFINITY_MAIN_H
