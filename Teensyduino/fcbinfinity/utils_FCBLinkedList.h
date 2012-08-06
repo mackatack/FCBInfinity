@@ -18,16 +18,16 @@
 template <class T>
 struct FBCListItem {
   // Pointer to the user data
-	T * data;
+  T * data;
 
   // Pointer to the next entry in the LinkedList
-	FBCListItem<T> * next;
+  FBCListItem<T> * next;
 
   // Constructor that initializes the data
-	FBCListItem(T * d) {
-		data = d;
-		next = NULL;
-	}
+  FBCListItem(T * d) {
+    data = d;
+    next = NULL;
+  }
 };
 
 // Linked List class
@@ -102,7 +102,7 @@ class FCBLinkedList {
         last = prev;
       // If prev exists link it to the new next
       if (prev != NULL)
-    	prev->next = curr->next;
+      prev->next = curr->next;
 
       // Remember this item and set curr to the next item
       FBCListItem<T> * pItem = curr;
@@ -119,7 +119,7 @@ class FCBLinkedList {
 
     // Returns the number of entries in the linked list.
     int getSize() {
-    	return numItems;
+      return numItems;
     }
   protected:
     int numItems;            // Holds the number of items in this list.
