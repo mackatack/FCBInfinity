@@ -2,8 +2,7 @@
 #include "utils_FCBLinkedList.h"
 #include "utils_FCBTimer.h"
 
-// @TODO: add documentation and code cleanup
-
+// Initialize the static linked list
 FCBLinkedList<FCBTimer> * FCBTimerManager::list = new FCBLinkedList<FCBTimer>;
 
 // Initialization of the FCBTimer linkedlist entry
@@ -43,13 +42,13 @@ void FCBTimerManager::processTimers() {
     return;
 
   // Loop through all the timer objects in the linked list
-	FCBTimer * curr;
+  FCBTimer * curr;
   list->reset();
   while((curr = list->current()) != NULL) {
     // Has the current timer expired?
-		if (curr->m_lExpires > millis()) {
+    if (curr->m_lExpires > millis()) {
       // The timer hasn't expired, just continue to the next entry
-			list->next();
+      list->next();
       continue;
     }
 
@@ -85,7 +84,7 @@ void FCBTimerManager::removeTimer(void (*func)(FCBTimer*)) {
     return;
 
   // Loop through all the timer objects in the linked list
-	FCBTimer * curr;
+  FCBTimer * curr;
   list->reset();
   while((curr = list->current()) != NULL) {
     // Function pointer doesnt match? continue to next entry
@@ -96,7 +95,7 @@ void FCBTimerManager::removeTimer(void (*func)(FCBTimer*)) {
 
     // Function pointer does match, remove the entry
     list->removeCurrent();
-	}
+  }
 }
 
 // Marty McFly's secret function
