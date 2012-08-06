@@ -1,0 +1,73 @@
+EffectID,Effect name,Type,Axe-II,Axe-Ultra,Axe-Standard
+0,Dummy,0,x,x,x
+100,Compressor 1,2,x,x,x
+101,Compressor 2,2,x,x,x
+102,GraphicEQ 1,3,x,x,x
+103,GraphicEQ 2,3,x,x,x
+104,Parametric EQ 1,4,x,x,x
+105,Parametric EQ 2,4,x,x,x
+106,Amp 1,5,x,x,x
+107,Amp 2,5,x,x,x
+108,Cabinet 1,6,x,x,x
+109,Cabinet 2,6,x,x,x
+110,Reverb 1,7,x,x,x
+111,Reverb 2,7,x,x,x
+112,Delay 1,8,x,x,x
+113,Delay 2,8,x,x,x
+114,Multidelay 1,9,x,x,x
+115,Multidelay 2,9,x,x,x
+116,Chorus 1,10,x,x,x
+117,Chorus 2,10,x,x,x
+118,Flanger 1,11,x,x,x
+119,Flanger 2,11,x,x,x
+120,Rotary 1,12,x,x,x
+121,Rotary 2,12,x,x,x
+122,Phaser 1,13,x,x,x
+123,Phaser 2,13,x,x,x
+124,Wahwah 1,14,x,x,x
+125,Wahwah 2,14,x,x,x
+126,Formant,15,x,x,x
+127,Vol/Pan 1,34,x,x,x
+128,Panner/Tremolo 1,16,x,x,x
+129,Panner/Tremolo 2,16,x,x,x
+130,Pitch 1,17,x,x,x
+131,Filter 1,18,x,x,x
+132,Filter 2,18,x,x,x
+133,Drive 1,19,x,x,x
+134,Drive 2,19,x,x,x
+135,Enhancer,20,x,x,x
+136,Effects Loop,21,x,x,x
+137,Mixer 1,22,x,x,x
+138,Mixer 2,22,x,x,x
+139,NoiseGate,35,x,x,x
+140,Output,36,x,x,x
+141,Controllers,37,x,x,x
+142,Feedback Send,23,x,x,x
+143,Feedback Return,24,x,x,x
+144,Synth 1,25,x,x,
+145,Synth 2,25,x,x,
+146,Vocoder,26,x,x,
+147,Megatap Delay,27,x,x,
+148,Crossover 1,28,x,x,
+149,Crossover 2,28,x,x,
+150,Gate/Expander 1,29,x,x,
+151,Gate/Expander 2,29,x,x,
+152,RingMod,30,x,x,
+153,Pitch 2,17,x,x,
+154,Multiband Comp 1,31,x,x,
+155,Multiband Comp 2,31,x,x,
+156,Quad Chorus 1,32,x,x,
+157,Quad Chorus 2,32,x,x,
+158,Resonator 1,33,x,x,
+159,Resonator 2,33,x,x,
+160,GraphicEQ 3,3,x,x,
+161,GraphicEQ 4,3,x,x,
+162,Parametric EQ 3,4,x,x,
+163,Parametric EQ 4,4,x,x,
+164,Filter 3,18,x,x,
+165,Filter 4,18,x,x,
+166,Vol/Pan 2,34,x,x,
+167,Vol/Pan 3,34,x,x,
+168,Vol/Pan 4,34,x,x,
+169,Looper,38,x,,
+170,Tone Match,39,x,,
