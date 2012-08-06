@@ -33,7 +33,11 @@ AxeMidi_Class AxeMidi;
  * Constructor
  */
 AxeMidi_Class::AxeMidi_Class() {
-  m_bSendReceiveChecksummedSysEx = false;
+  m_iAxeModel = 3;
+  m_bFirmwareVersionReceived;
+  m_fpRawSysExCallback = NULL;
+  m_fpAxeFxSysExCallback = NULL;
+  //sendLoopbackCheck();
 }
 
 // Initialize the static constant that holds the note names
@@ -53,8 +57,8 @@ boolean AxeMidi_Class::handleMidi() {
     return false;
   }
 
+  // We've got a message!
   m_bHasMessage = true;
-
   Serial.print("Type: ");
   Serial.print(AxeMidi.getType());
   Serial.print(", data1: ");
@@ -64,6 +68,56 @@ boolean AxeMidi_Class::handleMidi() {
   Serial.print(", Channel: ");
   Serial.print(AxeMidi.getChannel());
   Serial.println(", MIDI OK!");
+
+  // Lets see if the message is a sysex and call the appropriate callbacks
+  if (getType() == SysEx) {
+    // Get the byte array SysEx message and the length of the message
+    byte * sysex = AxeMidi.getSysExArray();
+    int length = AxeMidi.getData1();
+
+    if (sysex[5] == SYSEX_LOOBACK_CHECK_DATA) {
+      // Oof, midi thru is enabled on the AxeFx, send a message to the user that they
+      // need to disable it.
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("#WARNING# Disable   Midi Thru on AxeFx");
+      delay(5000);
+      lcd.clear();
+      lcd.setCursor(0,0);
+    }
+
+    // In case the length > 4 and the AXE_MANUFACTURER bytes match, this
+    // sysex is coming from the AxeFx unit. Lets do some basic handling and
+    // if there are any callbacks registered, call them now
+    if (length>4 &&
+        sysex[1] == AXE_MANUFACTURER_B1 &&
+        sysex[2] == AXE_MANUFACTURER_B2 &&
+        sysex[3] == AXE_MANUFACTURER_B3) {
+
+      // In case it's a firmware version response, lets
+      // store the correct model info
+      if (sysex[5] == SYSEX_AXEFX_FIRMWARE_VERSION ||
+          sysex[5] == SYSEX_AXEFX_FIRMWARE_VERSION_AXE2) {
+        Serial.println("RECEIVED FIRMWARE VERSION! <3");
+        m_bFirmwareVersionReceived=true;
+        m_iAxeModel = sysex[4];
+      }
+
+      // Lets see if we have a valid callback function for AxeFx sysex messages
+      if (m_fpAxeFxSysExCallback != NULL)
+        (m_fpAxeFxSysExCallback)(sysex, length);
+    }
+    else {
+      // Not an axefx sysex, call the rawsysex callback
+      if (m_fpRawSysExCallback != NULL)
+        (m_fpRawSysExCallback)(sysex, length);
+    }
+
+    // Some debugging code to just dump the sysex data on the serial line.
+    Serial.print("Sysex ");
+    bytesHexDump(sysex, length);
+    Serial.println(" ");
+  }
 
   return true;
 }
@@ -115,19 +169,34 @@ void AxeMidi_Class::sendToggleXY(boolean bYModeOn, int iChannel) {
 /**
  * Overrides the sendSysEx in MIDI.cpp.
  * Just send a sysex message via MIDI, but track the checksum in the sysexChecksum variable
- * if m_bSendReceiveChecksummedSysEx is true
+ * if m_iAxeModel>=3
  */
 void AxeMidi_Class::sendSysEx(byte length, byte * sysexData) {
+  if (!m_bFirmwareVersionReceived &&
+      sysexData[4] != SYSEX_AXEFX_FIRMWARE_VERSION &&
+      sysexData[4] != SYSEX_LOOBACK_CHECK_DATA) {
+    // If we don't have the firmware version yet, please request it from the
+    // axefx, but dont send it if this is the actual firmware request
+    sendLoopbackAndVersionCheck();
+  }
+
   HWSerial.write(0xF0);
   HWSerial.write(sysexData, length);
 
   // More info on checksumming see:
   // http://wiki.fractalaudio.com/axefx2/index.php?title=MIDI_SysEx
-  if (m_bSendReceiveChecksummedSysEx) {
+  if (m_iAxeModel>=3) {
     byte sum = 0xF0;
     for (int i=0; i<length; ++i)
       sum = sum ^ sysexData[i];
     HWSerial.write(sum & 0x7F);
+    Serial.print("Sending checksummed sysex: ");
+    bytesHexDump(sysexData, length);
+    Serial.println();
+  } else {
+    Serial.print("Sending unchecksummed sysex: ");
+    bytesHexDump(sysexData, length);
+    Serial.println();
   }
 
   HWSerial.write(0xF7);
@@ -137,15 +206,27 @@ void AxeMidi_Class::sendSysEx(byte length, byte * sysexData) {
  * This just sends a bogus message to test if the AxeFx is echoing our messages back
  * if so, the user should disable thru...
  */
-void AxeMidi_Class::sendLoopbackCheck() {
-  byte msgRequestPresetName[] = {
+void AxeMidi_Class::sendLoopbackAndVersionCheck() {
+  // Send the bogus loopback check data
+  byte msgBogusLoopbackData[] = {
     SYSEX_LOOBACK_CHECK_DATA,
     SYSEX_LOOBACK_CHECK_DATA,
     SYSEX_LOOBACK_CHECK_DATA,
     SYSEX_LOOBACK_CHECK_DATA,
     SYSEX_LOOBACK_CHECK_DATA
   };
-  sendSysEx(5, msgRequestPresetName);
+  sendSysEx(5, msgBogusLoopbackData);
+
+  // Send the firmware version data
+  static const byte msgRequestFirmwareVersion[] = {
+    AXE_MANUFACTURER,
+    1,
+    SYSEX_AXEFX_FIRMWARE_VERSION,
+    0,
+    0
+  };
+  sendSysEx(7, (byte*)msgRequestFirmwareVersion);
+
 }
 
 /**
@@ -153,28 +234,40 @@ void AxeMidi_Class::sendLoopbackCheck() {
  */
 void AxeMidi_Class::requestPresetName() {
   static const byte msgRequestPresetName[] = {
-    SYSEX_AXEFX_MANUFACTURER,
-    SYSEX_AXEFX_MODEL,
+    AXE_MANUFACTURER,
+    m_iAxeModel,
     SYSEX_AXEFX_PRESET_NAME
   };
   sendSysEx(5, (byte*)msgRequestPresetName);
 }
 
+/**
+ * Tell the AxeFx to send the PresetName over Midi
+ * @TODO This is just a test, no clue if it actually works.
+ * but we really want to know the current presetnumber on startup
+ * so lets just try.
+ */
+void AxeMidi_Class::requestPresetNumber() {
+  static const byte msgRequestPresetNumber[] = {
+    AXE_MANUFACTURER,
+    m_iAxeModel,
+    SYSEX_AXEFX_PRESET_CHANGE
+  };
+  sendSysEx(5, (byte*)msgRequestPresetNumber);
+}
 
 /**
  * Tell the AxeFx to send the bypass states for the current preset's effects
  * http://forum.fractalaudio.com/other-midi-controllers/39161-using-sysex-recall-present-effect-bypass-status-info-available.html
  */
-
 void AxeMidi_Class::requestBypassStates() {
   static const byte msgRequestBypassStates[] = {
-    SYSEX_AXEFX_MANUFACTURER,
-    SYSEX_AXEFX_MODEL,
+    AXE_MANUFACTURER,
+    m_iAxeModel,
     SYSEX_AXEFX_GET_PRESET_EFFECT_BLOCKS_AND_CC_AND_BYPASS_STATE
   };
   sendSysEx(5, (byte*)msgRequestBypassStates);
 }
-
 
 /**
  * Tell the AxeFx to start the tuner and send us the realtime
@@ -192,9 +285,16 @@ void AxeMidi_Class::startTuner() {
  * library. If you want to use this library with the AxeFX-II you should set this
  * variable to true after the initialization of the library.
  */
-boolean AxeMidi_Class::getSendReceiveChecksummedSysEx() {
-  return m_bSendReceiveChecksummedSysEx;
+int AxeMidi_Class::getModel() {
+  return m_iAxeModel;
 }
-void AxeMidi_Class::setSendReceiveChecksummedSysEx(boolean sendReceiveChecksummedSysex) {
-  m_bSendReceiveChecksummedSysEx = sendReceiveChecksummedSysex;
+
+/**
+ * Registering of the callback functions
+ */
+void AxeMidi_Class::registerAxeSysExReceiveCallback( void (*func)(byte*,int) ) {
+  m_fpAxeFxSysExCallback = func;
+}
+void AxeMidi_Class::registerRawSysExReceiveCallback( void (*func)(byte*,int) ) {
+  m_fpRawSysExCallback = func;
 }

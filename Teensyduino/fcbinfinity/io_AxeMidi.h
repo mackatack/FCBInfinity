@@ -15,19 +15,31 @@
 #include <Wprogram.h>
 #include <MIDI.h>
 
-#define SYSEX_LOOBACK_CHECK_DATA 0x76
-#define SYSEX_AXEFX_MANUFACTURER 0x00, 0x01, 0x74
-#define SYSEX_AXEFX_MODEL 0x03
+// A list of the currently available axe models
+#define AXEMODEL_STANDARD 0
+#define AXEMODEL_ULTRA    1
+#define AXEMODEL_AXEFX2   3
 
+#define AXE_MANUFACTURER_B1  0x00
+#define AXE_MANUFACTURER_B2  0x01
+#define AXE_MANUFACTURER_B3  0x74
+#define AXE_MANUFACTURER  0x00, 0x01, 0x74
+
+// The data we'll send to check the midiThru state
+#define SYSEX_LOOBACK_CHECK_DATA 0x76
+
+// The function id's we're using from the axe
+#define SYSEX_AXEFX_FIRMWARE_VERSION 0x08
+#define SYSEX_AXEFX_FIRMWARE_VERSION_AXE2 0x64
 #define SYSEX_AXEFX_REALTIME_TUNER 0x0D
 #define SYSEX_AXEFX_REALTIME_TEMPO 0x10
-
 #define SYSEX_AXEFX_PRESET_NAME 0x0F
 #define SYSEX_AXEFX_PRESET_CHANGE 0x14
 #define SYSEX_AXEFX_GET_PRESET_EFFECT_BLOCKS_AND_CC_AND_BYPASS_STATE 0x0E
 
 // Effect id's
 // http://wiki.fractalaudio.com/index.php?title=Axe-Fx_SysEx_Documentation#Effect_Block_IDs
+// Better yet, see the default.axeml file supplied with the AxeEdit program for all the correct ids
 // Only added the common effect id's
 #define SYSEX_AXEFX_EFFECTID_Comp1            0x0406
 #define SYSEX_AXEFX_EFFECTID_Comp2            0x0506
@@ -141,10 +153,13 @@
 #define CC_AXEFX_Graphic_EQ_3_Bypass 64
 #define CC_AXEFX_Graphic_EQ_4_Bypass 65
 #define CC_AXEFX_Megatap_Delay_Bypass 66
-#define CC_AXEFX_Multi_Delay_1_Bypass 67
-#define CC_AXEFX_Multi_Delay_2_Bypass 68
-#define CC_AXEFX_Multiband_Comp_1_Bypass 69
-#define CC_AXEFX_Multiband_Comp_2_Bypass 70
+
+// Presumably these four were switched in the manual
+#define CC_AXEFX_Multiband_Comp_1_Bypass 67 // manual: 69
+#define CC_AXEFX_Multiband_Comp_2_Bypass 68 // manual: 70
+#define CC_AXEFX_Multi_Delay_1_Bypass 69    // manual: 67
+#define CC_AXEFX_Multi_Delay_2_Bypass 70    // manual: 68
+
 #define CC_AXEFX_Parametric_EQ_1_Bypass 71
 #define CC_AXEFX_Parametric_EQ_2_Bypass 72
 #define CC_AXEFX_Parametric_EQ_3_Bypass 73
@@ -206,17 +221,29 @@ class AxeMidi_Class: public MIDI_Class {
     static const char *notes[]; //= {"A ", "A#", "B ", "C ", "C#", "D ", "D#", "E ", "F ", "F#", "G ", "G#"};
 
     void startTuner();
+    void requestPresetNumber();
     void requestPresetName();
     void requestBypassStates();
     void sendSysEx(byte length, byte * array);
     void sendPresetChange(int iAxeFxPresetNumber, int iChannel);
     void sendToggleXY(boolean bYModeOn, int iChannel);
-    void sendLoopbackCheck();
+    void sendLoopbackAndVersionCheck();
+
+    boolean isInitialized() {
+      return m_bFirmwareVersionReceived;
+    }
 
     /* Check for new incoming MIDI messages, call this once every loop cycle */
     boolean handleMidi();
     /* hasMessage returns whether or not we received a message this loop */
     boolean hasMessage();
+
+    /* gets the AxeModel */
+    int getModel();
+
+    /* sets the callback functions for incoming sysex messages */
+    void registerAxeSysExReceiveCallback( void (*func)(byte*,int) );
+    void registerRawSysExReceiveCallback( void (*func)(byte*,int) );
 
     /**
      * The AxeFX-II requires us to send checksummed SysEx messages over midi and
@@ -225,12 +252,16 @@ class AxeMidi_Class: public MIDI_Class {
      * library. If you want to use this library with the AxeFX-II you should set this
      * variable to true after the initialization of the library.
      */
-    boolean getSendReceiveChecksummedSysEx();
-    void setSendReceiveChecksummedSysEx(boolean sendReceiveChecksummedSysex);
 
   protected:
     boolean m_bHasMessage;
-    boolean m_bSendReceiveChecksummedSysEx;
+    int m_iAxeModel;
+    boolean m_bFirmwareVersionReceived;
+
+    /* Function pointer to a user defined function that handles raw sysex messages */
+    void (*m_fpRawSysExCallback)(byte * sysex, int length);
+    /* Function pointer to a user defined function that handles axefx sysex messages */
+    void (*m_fpAxeFxSysExCallback)(byte * sysex, int length);
 };
 
 extern AxeMidi_Class AxeMidi;
