@@ -1,30 +1,8 @@
 #include <Wprogram.h>
-#include <MIDI.h>
 #include "io_AxeMidi.h"
 #include "fcbinfinity.h"
 
-#include "MIDI.h"
-#if defined(ARDUINO) && ARDUINO >= 100
-#include "Arduino.h"
-#else
-#include "WProgram.h"
-#endif
-#include "HardwareSerial.h"
-#define Channel_Refused 0
-
-/*! to ATmega 644p users: this library uses the serial port #1 for MIDI. */
-#if defined(__AVR_ATmega644P__)
-#undef HWSerial
-#define HWSerial Serial1
-/*! to Teensy/Teensy++ users: this library uses the Tx & Rx pins (the USB is not used) */
-#elif defined(CORE_TEENSY)
-#undef HWSerial
-HardwareSerial HWSerial = HardwareSerial();
-#else
-/*! to any other ATmega users: this library uses the serial port #0 for MIDI (if you have more than one HWSerial).*/
-#undef HWSerial
-#define HWSerial Serial
-#endif
+#include "io_MIDI.h"
 
 /* Main instance the class comes pre-instantiated, just like the Midi class does. */
 AxeMidi_Class AxeMidi;
@@ -53,7 +31,7 @@ const char *AxeMidi_Class::notes[] = {
  */
 boolean AxeMidi_Class::handleMidi() {
 
-  if (!AxeMidi.read(MIDI_CHANNEL_OMNI)) {
+  if (!MIDINEW.read(MIDI_CHANNEL_OMNI)) {
     m_bHasMessage = false;
     return false;
   }
@@ -62,10 +40,10 @@ boolean AxeMidi_Class::handleMidi() {
   m_bHasMessage = true;
 
   // Lets see if the message is a sysex and call the appropriate callbacks
-  if (getType() == SysEx) {
+  if (MIDINEW.getType() == SystemExclusive) {
     // Get the byte array SysEx message and the length of the message
-    byte * sysex = AxeMidi.getSysExArray();
-    int length = AxeMidi.getData1();
+    byte * sysex = (byte *)MIDINEW.getSysExArray();
+    int length = MIDINEW.getData1();
 
     if (sysex[5] == SYSEX_LOOBACK_CHECK_DATA) {
       // Oof, midi thru is enabled on the AxeFx, send a message to the user that they
@@ -114,13 +92,13 @@ boolean AxeMidi_Class::handleMidi() {
 
   // If it's not a SysEx, output some useful info
   Serial.print("Type: ");
-  Serial.print(AxeMidi.getType());
+  Serial.print(MIDINEW.getType());
   Serial.print(", data1: ");
-  Serial.print(AxeMidi.getData1());
+  Serial.print(MIDINEW.getData1());
   Serial.print(", data2: ");
-  Serial.print(AxeMidi.getData2());
+  Serial.print(MIDINEW.getData2());
   Serial.print(", Channel: ");
-  Serial.print(AxeMidi.getChannel());
+  Serial.print(MIDINEW.getChannel());
   Serial.println(", MIDI OK!");
 
   return true;
@@ -176,14 +154,15 @@ void AxeMidi_Class::sendToggleXY(boolean bYModeOn) {
  * http://wiki.fractalaudio.com/axefx2/index.php?title=MIDI_CCs_list
  */
 void AxeMidi_Class::sendControlChange(int cc, int value) {
-  MIDI_Class::sendControlChange(cc, value, m_iAxeChannel);
+  //MIDI.sendControlChange(0, 0, m_iAxeChannel);
+  MIDINEW.sendControlChange(cc, value, m_iAxeChannel);
 }
 
 /**
  * Sends a PC command to the AxeFx
  */
 void AxeMidi_Class::sendProgramChange(int pc) {
-  MIDI_Class::sendProgramChange(pc, m_iAxeChannel);
+  MIDINEW.sendProgramChange(pc, m_iAxeChannel);
 }
 
 /**
@@ -200,26 +179,24 @@ void AxeMidi_Class::sendSysEx(byte length, byte * sysexData) {
     sendLoopbackAndVersionCheck();
   }
 
-  HWSerial.write(0xF0);
-  HWSerial.write(sysexData, length);
-
   // More info on checksumming see:
   // http://wiki.fractalaudio.com/axefx2/index.php?title=MIDI_SysEx
   if (m_iAxeModel>=3) {
     byte sum = 0xF0;
-    for (int i=0; i<length; ++i)
-      sum = sum ^ sysexData[i];
-    HWSerial.write(sum & 0x7F);
+    for (int i=0; i<length-1; ++i)
+      sum ^= sysexData[i];
+    sysexData[length-1] = (sum & 0x7F);
     Serial.print("Sending checksummed sysex: ");
     bytesHexDump(sysexData, length);
     Serial.println();
   } else {
+    length--;
     Serial.print("Sending unchecksummed sysex: ");
     bytesHexDump(sysexData, length);
     Serial.println();
   }
 
-  HWSerial.write(0xF7);
+  MIDINEW.sendSysEx(length, sysexData);
 }
 
 /**
@@ -233,9 +210,10 @@ void AxeMidi_Class::sendLoopbackAndVersionCheck() {
     SYSEX_LOOBACK_CHECK_DATA,
     SYSEX_LOOBACK_CHECK_DATA,
     SYSEX_LOOBACK_CHECK_DATA,
-    SYSEX_LOOBACK_CHECK_DATA
+    SYSEX_LOOBACK_CHECK_DATA,
+    SYSEX_EMPTY_BYTE
   };
-  sendSysEx(5, msgBogusLoopbackData);
+  sendSysEx(6, msgBogusLoopbackData);
 
   // Send the firmware version data
   static const byte msgRequestFirmwareVersion[] = {
@@ -243,9 +221,10 @@ void AxeMidi_Class::sendLoopbackAndVersionCheck() {
     1,
     SYSEX_AXEFX_FIRMWARE_VERSION,
     0,
-    0
+    0,
+    SYSEX_EMPTY_BYTE
   };
-  sendSysEx(7, (byte*)msgRequestFirmwareVersion);
+  sendSysEx(8, (byte*)msgRequestFirmwareVersion);
 
 }
 
@@ -256,9 +235,10 @@ void AxeMidi_Class::requestPresetName() {
   static const byte msgRequestPresetName[] = {
     AXE_MANUFACTURER,
     m_iAxeModel,
-    SYSEX_AXEFX_PRESET_NAME
+    SYSEX_AXEFX_PRESET_NAME,
+    SYSEX_EMPTY_BYTE
   };
-  sendSysEx(5, (byte*)msgRequestPresetName);
+  sendSysEx(6, (byte*)msgRequestPresetName);
 }
 
 /**
@@ -271,9 +251,10 @@ void AxeMidi_Class::requestPresetNumber() {
   static const byte msgRequestPresetNumber[] = {
     AXE_MANUFACTURER,
     m_iAxeModel,
-    SYSEX_AXEFX_PRESET_CHANGE
+    SYSEX_AXEFX_PRESET_CHANGE,
+    SYSEX_EMPTY_BYTE
   };
-  sendSysEx(5, (byte*)msgRequestPresetNumber);
+  sendSysEx(6, (byte*)msgRequestPresetNumber);
 }
 
 /**
@@ -284,9 +265,10 @@ void AxeMidi_Class::requestBypassStates() {
   static const byte msgRequestBypassStates[] = {
     AXE_MANUFACTURER,
     m_iAxeModel,
-    SYSEX_AXEFX_GET_PRESET_EFFECT_BLOCKS_AND_CC_AND_BYPASS_STATE
+    SYSEX_AXEFX_GET_PRESET_EFFECT_BLOCKS_AND_CC_AND_BYPASS_STATE,
+    SYSEX_EMPTY_BYTE
   };
-  sendSysEx(5, (byte*)msgRequestBypassStates);
+  sendSysEx(6, (byte*)msgRequestBypassStates);
 }
 
 /**

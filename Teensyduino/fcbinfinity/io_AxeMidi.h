@@ -13,7 +13,7 @@
 #define AxeMidi_Class_H
 
 #include <Wprogram.h>
-#include <MIDI.h>
+#include "io_MIDI.h"
 
 // A list of the currently available axe models
 #define AXEMODEL_STANDARD 0
@@ -38,7 +38,10 @@
 #define SYSEX_AXEFX_GET_PRESET_EFFECT_BLOCKS_AND_CC_AND_BYPASS_STATE 0x0E
 #define SYSEX_AXEFX_PRESET_MODIFIED 0x21
 
-class AxeMidi_Class: public MIDI_Class {
+// Used to predefine the checksum byte in sysex messages
+#define SYSEX_EMPTY_BYTE 0x00
+
+class AxeMidi_Class {
   public:
     AxeMidi_Class();
 
