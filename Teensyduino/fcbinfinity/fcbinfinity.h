@@ -73,6 +73,12 @@
 
   // A neat little debugging function that just dumps all bytes of a byte array to
   // the serial line
-  extern void bytesHexDump(byte * bytes, int length);
+  inline void bytesHexDump(byte * bytes, int length) {
+    Serial.print(" HEX:  ");
+    for(int i=0; i<length; ++i) {
+      Serial.print(bytes[i], HEX);
+      Serial.print(" ");
+    }
+  }
 
 #endif //FCBINFINITY_MAIN_H

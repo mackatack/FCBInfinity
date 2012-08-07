@@ -36,6 +36,7 @@
 #define SYSEX_AXEFX_PRESET_NAME 0x0F
 #define SYSEX_AXEFX_PRESET_CHANGE 0x14
 #define SYSEX_AXEFX_GET_PRESET_EFFECT_BLOCKS_AND_CC_AND_BYPASS_STATE 0x0E
+#define SYSEX_AXEFX_PRESET_MODIFIED 0x21
 
 // Effect id's
 // http://wiki.fractalaudio.com/index.php?title=Axe-Fx_SysEx_Documentation#Effect_Block_IDs
@@ -225,8 +226,10 @@ class AxeMidi_Class: public MIDI_Class {
     void requestPresetName();
     void requestBypassStates();
     void sendSysEx(byte length, byte * array);
-    void sendPresetChange(int iAxeFxPresetNumber, int iChannel);
-    void sendToggleXY(boolean bYModeOn, int iChannel);
+    void sendPresetChange(int iAxeFxPresetNumber);
+    void sendToggleXY(boolean bYModeOn);
+    void sendControlChange(int cc, int value);
+    void sendProgramChange(int pc);
     void sendLoopbackAndVersionCheck();
 
     boolean isInitialized() {
@@ -238,24 +241,27 @@ class AxeMidi_Class: public MIDI_Class {
     /* hasMessage returns whether or not we received a message this loop */
     boolean hasMessage();
 
-    /* gets the AxeModel */
+    /*
+     * gets the AxeModel
+     * AxeFX-II requires us to send checksummed SysEx messages over midi and
+     * it will also send checksummed messages. This boolean controls whether or not
+     * to send the extra byte checksum and allows older AxeFX models to also use this
+     * library.
+     */
     int getModel();
 
     /* sets the callback functions for incoming sysex messages */
     void registerAxeSysExReceiveCallback( void (*func)(byte*,int) );
     void registerRawSysExReceiveCallback( void (*func)(byte*,int) );
 
-    /**
-     * The AxeFX-II requires us to send checksummed SysEx messages over midi and
-     * it will also send checksummed messages. This boolean controls whether or not
-     * to send the extra byte checksum and allows older AxeFX models to also use this
-     * library. If you want to use this library with the AxeFX-II you should set this
-     * variable to true after the initialization of the library.
-     */
+    /* gets and sets the midi channel this library will send messages on */
+    void setMidiSendChannel(int channel) {m_iAxeChannel=channel;}
+    int setMidiSendChannel() {return m_iAxeChannel;}
 
   protected:
     boolean m_bHasMessage;
     int m_iAxeModel;
+    int m_iAxeChannel;
     boolean m_bFirmwareVersionReceived;
 
     /* Function pointer to a user defined function that handles raw sysex messages */

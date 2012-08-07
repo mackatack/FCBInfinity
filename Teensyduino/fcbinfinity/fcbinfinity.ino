@@ -3,7 +3,7 @@
  *
  * This is the main Arduino/Teensyduino file for the FCBInfinity project.
  * Please note that this is VERY much still a work in progress and you should
- * consider the code below still in Alpha/Testing phase. Use at work risk
+ * consider the code below still in Alpha/Testing phase. Use at own risk
  *
  * -Mackatack
  */
@@ -22,6 +22,7 @@
 
 #include "utils_FCBSettings.h"
 #include "utils_FCBTimer.h"
+#include "utils_FCBEffectManager.h"
 
 #include "io_ExpPedals.h"
 #include "io_AxeMidi.h"
@@ -73,7 +74,6 @@ ExpPedals_Class ExpPedal2(A7);  // Analog pin 7 (pin 45 on the Teensy)
 
 int     g_iCurrentPreset = 0;       // Here we track the current preset, in case we want to use it
 int     g_iPresetBank = 0;          // The bank controllable by the BankUp and BankDown buttons
-int     g_iAxeFxMidiChannel = 1;    // The channel the AxeFx expects to receive incoming messages
 int     g_iStompBoxMode = 0;        // The current stompboxmode, see the loop() function below
 boolean g_bXYToggle = false;        // The X/Y toggler
 
@@ -118,6 +118,16 @@ void onAxeFxSysExMessage(byte * sysex, int length) {
       // Schedule a new timer that turns off the led again after 100ms
       FCBTimerManager::addTimeout(100, &timerCallbackRGBLedOff);
       return;
+
+    case SYSEX_AXEFX_PRESET_MODIFIED:
+      // This gets sent when you manually edit the preset on the axefx, it sends this
+      // when adding or removing effect blocks, editing parameters, etc. etc. almost everything.
+      // Everything but when you manually bypass a block. Total suckage. The AxeFx is completely silent
+      // when you press the "FX BYP" button on the Axe.
+
+      // I guess we should use this later on to update params from the AxeFx, but we might as well ask for state
+      // updates manually every few seconds using a timer, that is, if we really want to keep the device completely
+      // in sync with the AxeFx (which we probably want, no? :P)
 
     case SYSEX_AXEFX_REALTIME_TUNER: {
       // Tuner
@@ -207,14 +217,16 @@ void onAxeFxSysExMessage(byte * sysex, int length) {
       // The sysex will contain the following data
       // see: http://forum.fractalaudio.com/other-midi-controllers/39161-using-sysex-recall-present-effect-bypass-status-info-available.html
 
-
       // Some debug code until we figure out what all this means :P
-      Serial.println("Preset effect states:");
+      Serial.println("Preset effect states received");
 
       // declare some vars we'll use in the loop
       int state;
       int effectID;
       int cc;
+
+      // Reset all the effectstates to 'not placed'
+      FCBEffectManager.resetStates();
 
       for(int i=6; i<length-4; i+=5) {
 
@@ -242,21 +254,9 @@ void onAxeFxSysExMessage(byte * sysex, int length) {
           state = sysex[i] & 0x7F; // byp and XY state
         }
 
-
-        Serial.print(" - Effect id: ");
-        Serial.print(effectID);
-        Serial.print(" cc ");
-        Serial.print(cc);
-        Serial.print(" state ");
-        Serial.print(state);
-        Serial.print("  ");
-
-        bytesHexDump(&sysex[i], 5);
-        Serial.println(".");
+        // Update the state and cc of the effectblock to the new values.
+        FCBEffectManager[effectID]->setStateAndCC(state, cc);
       }
-      Serial.println("End effect states");
-
-
 
       return;
   } // switch (sysex[5]) // FunctionID
@@ -304,7 +304,7 @@ void setStompBoxMode(int iNewMode) {
 /**
  * Sets the RGB-Led to a new color.
  */
-void setRGBLed(int r, int g, int b) {
+inline void setRGBLed(int r, int g, int b) {
   analogWrite(PIN_RGBLED_R, r);
   analogWrite(PIN_RGBLED_G, g);
   analogWrite(PIN_RGBLED_B, b);
@@ -388,17 +388,9 @@ void doBootSplash() {
  * PCB. <3 Teensy/Arduino
  * @returns The Bounce object to check the button states
  */
-Bounce mkBounce(int pin) {
+inline Bounce mkBounce(int pin) {
   pinMode(pin, INPUT_PULLUP);
   return Bounce(pin, 30);
-}
-
-void bytesHexDump(byte * bytes, int length) {
-  Serial.print(" HEX:  ");
-  for(int i=0; i<length; ++i) {
-    Serial.print(bytes[i], HEX);
-    Serial.print(" ");
-  }
 }
 
 /**
@@ -540,21 +532,21 @@ void loop() {
   // Send some debug data over the serial communications, set the value on the LED-digits and send a midi message
   if (ExpPedal1.hasChanged()) {
     // Send CC# 1 on channel 1, for debugging
-    AxeMidi.sendControlChange(1, ExpPedal1.getValue(), g_iAxeFxMidiChannel);
+    AxeMidi.sendControlChange(1, ExpPedal1.getValue());
   }
 
   // ExpPedal2 has a new value?
   // Just send the midi message
   if (ExpPedal2.hasChanged()) {
     // Send CC# 2 on channel 1, for debugging
-    AxeMidi.sendControlChange(2, ExpPedal2.getValue(), g_iAxeFxMidiChannel);
+    AxeMidi.sendControlChange(2, ExpPedal2.getValue());
   }
 
   // button 5 on the lower row toggles X/Y, it does that in any mode, so we can just
   // leave this outside of the StompBoxMode logic
   if (btnRowLower[4].btn.fallingEdge()) {
     g_bXYToggle = !g_bXYToggle;
-    AxeMidi.sendToggleXY(g_bXYToggle, g_iAxeFxMidiChannel);
+    AxeMidi.sendToggleXY(g_bXYToggle);
     return;
   }
 
@@ -586,7 +578,7 @@ void loop() {
         if (btnRowLower[i].btn.fallingEdge()) {
           // Send the PC message, i is the button number and add the current bank
           g_iCurrentPreset = i + 4*g_iPresetBank + 1;
-          AxeMidi.sendPresetChange(g_iCurrentPreset, g_iAxeFxMidiChannel);
+          AxeMidi.sendPresetChange(g_iCurrentPreset);
           return;
         }
       }
@@ -630,11 +622,11 @@ void loop() {
       // they will just move to the next or previous preset on the AxeFx. We'll calculate the new
       // bank automatically when we receive the preset changed SysEx from the AxeFx.
       if (btnBankUp.fallingEdge()) {
-        AxeMidi.sendPresetChange(g_iCurrentPreset+1, g_iAxeFxMidiChannel);
+        AxeMidi.sendPresetChange(g_iCurrentPreset+1);
         return;
       }
       if (btnBankDown.fallingEdge()) {
-        AxeMidi.sendPresetChange(g_iCurrentPreset-1, g_iAxeFxMidiChannel);
+        AxeMidi.sendPresetChange(g_iCurrentPreset-1);
         return;
       }
 

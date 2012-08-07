@@ -37,6 +37,7 @@ AxeMidi_Class::AxeMidi_Class() {
   m_bFirmwareVersionReceived;
   m_fpRawSysExCallback = NULL;
   m_fpAxeFxSysExCallback = NULL;
+  m_iAxeChannel = 1;
   //sendLoopbackCheck();
 }
 
@@ -59,15 +60,6 @@ boolean AxeMidi_Class::handleMidi() {
 
   // We've got a message!
   m_bHasMessage = true;
-  Serial.print("Type: ");
-  Serial.print(AxeMidi.getType());
-  Serial.print(", data1: ");
-  Serial.print(AxeMidi.getData1());
-  Serial.print(", data2: ");
-  Serial.print(AxeMidi.getData2());
-  Serial.print(", Channel: ");
-  Serial.print(AxeMidi.getChannel());
-  Serial.println(", MIDI OK!");
 
   // Lets see if the message is a sysex and call the appropriate callbacks
   if (getType() == SysEx) {
@@ -98,7 +90,6 @@ boolean AxeMidi_Class::handleMidi() {
       // store the correct model info
       if (sysex[5] == SYSEX_AXEFX_FIRMWARE_VERSION ||
           sysex[5] == SYSEX_AXEFX_FIRMWARE_VERSION_AXE2) {
-        Serial.println("RECEIVED FIRMWARE VERSION! <3");
         m_bFirmwareVersionReceived=true;
         m_iAxeModel = sysex[4];
       }
@@ -117,7 +108,20 @@ boolean AxeMidi_Class::handleMidi() {
     Serial.print("Sysex ");
     bytesHexDump(sysex, length);
     Serial.println(" ");
+
+    return true;
   }
+
+  // If it's not a SysEx, output some useful info
+  Serial.print("Type: ");
+  Serial.print(AxeMidi.getType());
+  Serial.print(", data1: ");
+  Serial.print(AxeMidi.getData1());
+  Serial.print(", data2: ");
+  Serial.print(AxeMidi.getData2());
+  Serial.print(", Channel: ");
+  Serial.print(AxeMidi.getChannel());
+  Serial.println(", MIDI OK!");
 
   return true;
 }
@@ -134,7 +138,7 @@ boolean AxeMidi_Class::hasMessage() {
  * @TODO calculate the AxeFx bank and send the correct CC#0 value
  * if iAxeFxPresetNumber > 127
  */
-void AxeMidi_Class::sendPresetChange(int iAxeFxPresetNumber, int iChannel) {
+void AxeMidi_Class::sendPresetChange(int iAxeFxPresetNumber) {
   // CC 0: 0 sets AxeFx bank to A, it might be a solution for the
   // problem I had when sending PC#2 and the AxeFx jumping to #384 (Bypass)
   // I'm not quite sure we're required to send this every PC, but we'll test
@@ -147,10 +151,10 @@ void AxeMidi_Class::sendPresetChange(int iAxeFxPresetNumber, int iChannel) {
   // It seems the Axe wont do subsequent preset changes
   // unless we send it some other midi message. Lets just keep this
   // bank mode switcher code in place for now
-  AxeMidi.sendControlChange(0, 0, iChannel);
+  sendControlChange(0, 0);
 
   // Send the PC message
-  AxeMidi.sendProgramChange(iAxeFxPresetNumber-1, iChannel);
+  sendProgramChange(iAxeFxPresetNumber-1);
 }
 
 /**
@@ -159,11 +163,27 @@ void AxeMidi_Class::sendPresetChange(int iAxeFxPresetNumber, int iChannel) {
  * See the link below for more info about the CC numbers
  * http://wiki.fractalaudio.com/axefx2/index.php?title=MIDI_CCs_list
  */
-void AxeMidi_Class::sendToggleXY(boolean bYModeOn, int iChannel) {
+void AxeMidi_Class::sendToggleXY(boolean bYModeOn) {
   // CC 100 to 119 control all the x/y for all the effects, just toggle them all.
   // If bYModeOn is true, send 127, otherwise send 0
   for (int cc=100; cc<=119; ++cc)
-    AxeMidi.sendControlChange(cc, bYModeOn?127:0, iChannel);
+    sendControlChange(cc, bYModeOn?127:0);
+}
+
+/**
+ * Sends a CC command to the AxeFx
+ * See the link below for more info about the CC numbers
+ * http://wiki.fractalaudio.com/axefx2/index.php?title=MIDI_CCs_list
+ */
+void AxeMidi_Class::sendControlChange(int cc, int value) {
+  MIDI_Class::sendControlChange(cc, value, m_iAxeChannel);
+}
+
+/**
+ * Sends a PC command to the AxeFx
+ */
+void AxeMidi_Class::sendProgramChange(int pc) {
+  MIDI_Class::sendProgramChange(pc, m_iAxeChannel);
 }
 
 /**
