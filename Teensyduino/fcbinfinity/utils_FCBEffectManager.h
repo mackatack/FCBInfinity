@@ -10,6 +10,8 @@
  * Use at own risk.
  */
 
+ // @TODO: Add documentation and move functions to separate file
+
 #include <WProgram.h>
 #include "io_AxeMidi.h"
 
@@ -156,6 +158,10 @@
 #define AXEFX_EFFECT_LAST     AXEFX_EFFECTID_ToneMatch
 #define AXEFX_EFFECT_COUNT    AXEFX_EFFECT_LAST - AXEFX_EFFECT_FIRST + 1
 
+// Defines the various states an effectblock might have
+#define AXEFX_EFFECT_STATE_ACTIVE 1
+#define AXEFX_EFFECT_STATE_X 2
+
 // Taken from the ../documentation/AxeFX Effect ID List.csv file
 const int effectTypes[] = {
   2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13,14,
@@ -194,8 +200,20 @@ public:
     Serial.print(" cc: ");
     Serial.println(cc);
   }
-  void setBypassed(bool newBypassState) {
-    AxeMidi.sendControlChange(cc, newBypassState?127:0);
+  bool isPlaced() { return state != -1; }
+  bool isActive() { return isPlaced() && (state & AXEFX_EFFECT_STATE_ACTIVE) == AXEFX_EFFECT_STATE_ACTIVE; }
+  bool isXMode() { return isPlaced() && (state & AXEFX_EFFECT_STATE_X) == AXEFX_EFFECT_STATE_X; }
+  bool toggleActive() { setActive(!isActive()); }
+  bool activate() { setActive(true); }
+  bool deactivate() { setActive(false); }
+  void setActive(bool active) {
+    if (state == -1) return;
+    if (active)
+      state |= AXEFX_EFFECT_STATE_ACTIVE;
+    else
+      state ^= AXEFX_EFFECT_STATE_ACTIVE;
+    AxeMidi.sendControlChange(cc, (active)?127:0);
+    AxeMidi.requestBypassStates();
   }
 protected:
   int effectID;
