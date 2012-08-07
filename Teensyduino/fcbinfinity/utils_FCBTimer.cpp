@@ -1,9 +1,12 @@
-#include <Wprogram.h>
-#include "utils_FCBLinkedList.h"
+#ifndef NULL
+#define NULL 0
+#endif
+
+#include "utils_FCBAssocLinkedList.h"
 #include "utils_FCBTimer.h"
 
 // Initialize the static linked list
-FCBLinkedList<FCBTimer> * FCBTimerManager::list = new FCBLinkedList<FCBTimer>;
+FCBAssocLinkedList<FCBTimer> * FCBTimerManager::list = new FCBAssocLinkedList<FCBTimer>;
 
 // Initialization of the FCBTimer linkedlist entry
 FCBTimer::FCBTimer(int interval, int numrepeats, void (*callback)(FCBTimer*)) {

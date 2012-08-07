@@ -15,7 +15,7 @@
 #define FCBInfinity_TimerH
 
 #include <Wprogram.h>
-#include "utils_FCBLinkedList.h"
+#include "utils_FCBAssocLinkedList.h"
 
 /**
  *  The timerEntry struct this is actually a node in a linked list.
@@ -94,7 +94,7 @@ class FCBTimerManager  {
     /**
      * Static linkedlist of FCBTimer structs
      */
-    static FCBLinkedList<FCBTimer> * list;
+    static FCBAssocLinkedList<FCBTimer> * list;
 
     // Contructor is private so this is a singleton
     FCBTimerManager();
