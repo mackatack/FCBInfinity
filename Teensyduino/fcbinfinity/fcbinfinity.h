@@ -13,7 +13,7 @@
   #include <Bounce.h>
   #include <LedControl.h>
   #include <LiquidCrystalFast.h>
-  #include <MIDI.h>
+  #include "io_MIDI.h"
   #include "io_AxeMidi.h"
   #include "io_ExpPedals.h"
 
@@ -55,6 +55,10 @@
     int x;
     Bounce btn;
     boolean ledStatus;
+    void setLed(bool state) {
+      ledStatus = state;
+      ledControl.setLed(0, x, y, state);
+    }
   } _FCBInfButton;
 
   // Make the buttons accessible throughout the entire project.

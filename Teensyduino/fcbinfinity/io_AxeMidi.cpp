@@ -146,6 +146,7 @@ void AxeMidi_Class::sendToggleXY(boolean bYModeOn) {
   // If bYModeOn is true, send 127, otherwise send 0
   for (int cc=100; cc<=119; ++cc)
     sendControlChange(cc, bYModeOn?127:0);
+  requestBypassStates();
 }
 
 /**

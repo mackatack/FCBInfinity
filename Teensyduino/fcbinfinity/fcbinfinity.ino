@@ -17,7 +17,7 @@
 #include <Bounce.h>
 #include <LedControl.h>
 #include <LiquidCrystalFast.h>
-#include <MIDI.h>
+#include "io_MIDI.h"
 #include <EEPROM.h>
 
 #include "utils_FCBSettings.h"
@@ -445,9 +445,9 @@ void setup() {
   Serial.println("FCBInfinity Startup");
 
   // Initialize MIDI, for now set midiThru off and channel to OMNI
-  AxeMidi.begin(MIDI_CHANNEL_OMNI);
+  MIDINEW.begin(MIDI_CHANNEL_OMNI);
+  MIDINEW.turnThruOff();
   AxeMidi.registerAxeSysExReceiveCallback(&onAxeFxSysExMessage);
-  AxeMidi.turnThruOff();
   Serial.println("- midi setup done");
 
   // Turn all the leds on that are connected to the MAX chip.
@@ -528,18 +528,15 @@ void loop() {
   }
 
   // Play around with the expression pedals a little
-  // ExpPedal1 has a new value?
-  // Send some debug data over the serial communications, set the value on the LED-digits and send a midi message
   if (ExpPedal1.hasChanged()) {
-    // Send CC# 1 on channel 1, for debugging
-    AxeMidi.sendControlChange(1, ExpPedal1.getValue());
+    // Send CC# External_Control_1 on channel 1
+    AxeMidi.sendControlChange(AXEFX_DEFAULTCC_External_Control_1, ExpPedal1.getValue());
   }
 
   // ExpPedal2 has a new value?
-  // Just send the midi message
   if (ExpPedal2.hasChanged()) {
-    // Send CC# 2 on channel 1, for debugging
-    AxeMidi.sendControlChange(2, ExpPedal2.getValue());
+    // Send CC# Out_1_Volume
+    AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Out_1_Volume, ExpPedal2.getValue());
   }
 
   // button 5 on the lower row toggles X/Y, it does that in any mode, so we can just
@@ -583,6 +580,16 @@ void loop() {
         }
       }
 
+      // The bottom 4 buttons indicate which preset is selected
+      // lets calculate which light to turn on
+      int light = (g_iCurrentPreset-1)%4;
+      // Just a sanitycheck, no need to crash the device over something small as this ;)
+      if (light<0) light=0;
+      if (light>3) light=3;
+      // Loop through the lower row of buttons and enable or disable the leds
+      for(int i=0; i<4; ++i)
+        btnRowLower[i].setLed(light==i);
+
       // If the bankUp/Down buttons are pressed update the presetBank variable.
       // Later on we might want to flash preset switching buttons or something and have a feature where you
       // cycle through banks faster by keeping the button pressed
@@ -600,7 +607,37 @@ void loop() {
         return;
       }
 
-      // @TODO: implement the stompbox button logic
+
+      // Right, the top buttons command a few effect blocks, namely:
+      // Drive1, Delay1, Chorus1, Flanger1, Pitch1/Wah1 swapper
+      // The latter one has Wah1 ON and Pitch1 OFF in unstomped state, and toggles the states when stomped.
+      // Is the button pressed, lets toggle
+      if (btnRowUpper[0].btn.fallingEdge())
+        FCBEffectManager[AXEFX_EFFECTID_Drive1]->toggleActive();
+      btnRowUpper[0].setLed(FCBEffectManager[AXEFX_EFFECTID_Drive1]->isActive());
+
+      if (btnRowUpper[1].btn.fallingEdge())
+        FCBEffectManager[AXEFX_EFFECTID_Delay1]->toggleActive();
+      btnRowUpper[1].setLed(FCBEffectManager[AXEFX_EFFECTID_Delay1]->isActive());
+
+      if (btnRowUpper[2].btn.fallingEdge())
+        FCBEffectManager[AXEFX_EFFECTID_Chorus1]->toggleActive();
+      btnRowUpper[2].setLed(FCBEffectManager[AXEFX_EFFECTID_Chorus1]->isActive());
+
+      if (btnRowUpper[3].btn.fallingEdge())
+        FCBEffectManager[AXEFX_EFFECTID_Flanger1]->toggleActive();
+      btnRowUpper[3].setLed(FCBEffectManager[AXEFX_EFFECTID_Flanger1]->isActive());
+
+
+      // This is the tricky one because it controls two effects
+      // In off state, WAH1 will be controlled by expPedal1ToeSwitch, in on state
+      // Pitch1 will be controlled. This way I can switch between whammy and wah
+      // with one stomp.
+      // @TODO: implement this
+      //FCBEffectManager[AXEFX_EFFECTID_Wahwah1
+      //FCBEffectManager[AXEFX_EFFECTID_Pitch1
+      btnRowUpper[4].setLed(FCBEffectManager[AXEFX_EFFECTID_Pitch1]->isPlaced());
+
 
     } // end of STOMP_MODE_NORMAL
     break;
@@ -617,6 +654,44 @@ void loop() {
         setStompBoxMode(STOMP_MODE_NORMAL);
         return;
       }
+
+      // Same as the normal stomp mode, the top row will control the same effects
+      if (btnRowUpper[0].btn.fallingEdge())
+        FCBEffectManager[AXEFX_EFFECTID_Drive1]->toggleActive();
+      btnRowUpper[0].setLed(FCBEffectManager[AXEFX_EFFECTID_Drive1]->isActive());
+
+      if (btnRowUpper[1].btn.fallingEdge())
+        FCBEffectManager[AXEFX_EFFECTID_Delay1]->toggleActive();
+      btnRowUpper[1].setLed(FCBEffectManager[AXEFX_EFFECTID_Delay1]->isActive());
+
+      if (btnRowUpper[2].btn.fallingEdge())
+        FCBEffectManager[AXEFX_EFFECTID_Chorus1]->toggleActive();
+      btnRowUpper[2].setLed(FCBEffectManager[AXEFX_EFFECTID_Chorus1]->isActive());
+
+      if (btnRowUpper[3].btn.fallingEdge())
+        FCBEffectManager[AXEFX_EFFECTID_Flanger1]->toggleActive();
+      btnRowUpper[3].setLed(FCBEffectManager[AXEFX_EFFECTID_Flanger1]->isActive());
+
+      // @TODO: implement top row button 4
+      btnRowUpper[4].setLed(FCBEffectManager[AXEFX_EFFECTID_Pitch1]->isPlaced());
+
+      // The bottom row will have four extra effect toggles now:
+      // Rev1, Multidelay1,
+      if (btnRowLower[0].btn.fallingEdge())
+        FCBEffectManager[AXEFX_EFFECTID_Reverb1]->toggleActive();
+      btnRowLower[0].setLed(FCBEffectManager[AXEFX_EFFECTID_Reverb1]->isActive());
+
+      if (btnRowLower[1].btn.fallingEdge())
+        FCBEffectManager[AXEFX_EFFECTID_Multidelay1]->toggleActive();
+      btnRowLower[1].setLed(FCBEffectManager[AXEFX_EFFECTID_Multidelay1]->isActive());
+
+      if (btnRowLower[2].btn.fallingEdge())
+        FCBEffectManager[AXEFX_EFFECTID_Phaser1]->toggleActive();
+      btnRowLower[2].setLed(FCBEffectManager[AXEFX_EFFECTID_Phaser1]->isActive());
+
+      if (btnRowLower[3].btn.fallingEdge())
+        FCBEffectManager[AXEFX_EFFECTID_Rotary1]->toggleActive();
+      btnRowLower[3].setLed(FCBEffectManager[AXEFX_EFFECTID_Rotary1]->isActive());
 
       // In this mode the bankUp/Down buttons react a little different; instead of changing banks
       // they will just move to the next or previous preset on the AxeFx. We'll calculate the new
@@ -644,6 +719,18 @@ void loop() {
 
   }
 
+  // Lower button 4 always controls the XY mode, this assumes there is always a AMP block in your
+  // preset, the current XY state is copied off that Amp1 block and toggles all the other effects
+  if (btnRowLower[4].btn.fallingEdge()) {
+    AxeMidi.sendToggleXY(!FCBEffectManager[AXEFX_EFFECTID_Amp1]->isXMode());
+  }
+  btnRowLower[4].setLed(!FCBEffectManager[AXEFX_EFFECTID_Amp1]->isXMode());
+
+  // Button under exppedal1 enables or disables WAH or Pitch1
+  if (btnExpPedalRight.fallingEdge()) {
+    Serial.println("TIPTOEBUTTON!!!");
+  }
+
 
   // ##############################
   // Some additional io debugging functions below
@@ -654,15 +741,13 @@ void loop() {
   for(int i=0; i<5; ++i) {
     // Check the upper row of buttons
     if (btnRowUpper[i].btn.fallingEdge()) {
-      btnRowUpper[i].ledStatus = !btnRowUpper[i].ledStatus;
-      ledControl.setLed(0, btnRowUpper[i].x, btnRowUpper[i].y, btnRowUpper[i].ledStatus);
+      btnRowUpper[i].setLed(!btnRowUpper[i].ledStatus);
       return;
     }
 
     // Check the lower row of buttons
     if (btnRowLower[i].btn.fallingEdge()) {
-      btnRowLower[i].ledStatus = !btnRowLower[i].ledStatus;
-      ledControl.setLed(0, btnRowLower[i].x, btnRowLower[i].y, btnRowLower[i].ledStatus);
+      btnRowLower[i].setLed(!btnRowLower[i].ledStatus);
       return;
     }
   }

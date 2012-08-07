@@ -197,6 +197,10 @@ public:
     Serial.print(effectID);
     Serial.print(" state: ");
     Serial.print(state);
+    Serial.print(" X: ");
+    Serial.print(isXMode());
+    Serial.print(" Active: ");
+    Serial.print(isActive());
     Serial.print(" cc: ");
     Serial.println(cc);
   }
