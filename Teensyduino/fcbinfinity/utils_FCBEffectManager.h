@@ -91,6 +91,67 @@
 #define AXEFX_EFFECTID_Looper 169
 #define AXEFX_EFFECTID_ToneMatch 170
 
+
+// Some default CC settings for the AxeFx
+// see http://wiki.fractalaudio.com/axefx2/index.php?title=MIDI_CCs_list
+#define AXEFX_DEFAULTCC_Input_Volume 10
+#define AXEFX_DEFAULTCC_Out_1_Volume 11
+#define AXEFX_DEFAULTCC_Out_2_Volume 12
+#define AXEFX_DEFAULTCC_Bypass 13
+#define AXEFX_DEFAULTCC_Tempo 14
+#define AXEFX_DEFAULTCC_Tuner 15
+#define AXEFX_DEFAULTCC_External_Control_1 16
+#define AXEFX_DEFAULTCC_External_Control_2 17
+#define AXEFX_DEFAULTCC_External_Control_3 18
+#define AXEFX_DEFAULTCC_External_Control_4 19
+#define AXEFX_DEFAULTCC_External_Control_5 20
+#define AXEFX_DEFAULTCC_External_Control_6 21
+#define AXEFX_DEFAULTCC_External_Control_7 22
+#define AXEFX_DEFAULTCC_External_Control_8 23
+#define AXEFX_DEFAULTCC_External_Control_9 24
+#define AXEFX_DEFAULTCC_External_Control_10 25
+#define AXEFX_DEFAULTCC_External_Control_11 26
+#define AXEFX_DEFAULTCC_External_Control_12 27
+
+#define AXEFX_DEFAULTCC_Looper_Record 28
+#define AXEFX_DEFAULTCC_Looper_Play 29
+#define AXEFX_DEFAULTCC_Looper_Once 30
+#define AXEFX_DEFAULTCC_Looper_Dub 31
+#define AXEFX_DEFAULTCC_Looper_Rev 32
+#define AXEFX_DEFAULTCC_Looper_Bypass 33
+#define AXEFX_DEFAULTCC_Looper_Half-speed 120
+#define AXEFX_DEFAULTCC_Looper_Undo 121
+#define AXEFX_DEFAULTCC_Looper_Metronome 122
+
+#define AXEFX_DEFAULTCC_Global_Bypass 34
+#define AXEFX_DEFAULTCC_Volume_Increment 35
+#define AXEFX_DEFAULTCC_Volume_Decrement 36
+
+// No need to define the bypass CCs since the FCBEffect objects will contain the
+// actual values sent from the AxeFx.
+
+#define AXEFX_DEFAULTCC_Amp_1_XY 100
+#define AXEFX_DEFAULTCC_Amp_2_XY 101
+#define AXEFX_DEFAULTCC_Cab_1_XY 102
+#define AXEFX_DEFAULTCC_Cab_2_XY 103
+#define AXEFX_DEFAULTCC_Chorus_1_XY 104
+#define AXEFX_DEFAULTCC_Chorus_2_XY 105
+#define AXEFX_DEFAULTCC_Delay_1_XY 106
+#define AXEFX_DEFAULTCC_Delay_2_XY 107
+#define AXEFX_DEFAULTCC_Drive_1_XY 108
+#define AXEFX_DEFAULTCC_Drive_2_XY 109
+#define AXEFX_DEFAULTCC_Flanger_1_XY 110
+#define AXEFX_DEFAULTCC_Flanger_2_XY 111
+#define AXEFX_DEFAULTCC_Phaser_1_XY 112
+#define AXEFX_DEFAULTCC_Phaser_2_XY 113
+#define AXEFX_DEFAULTCC_Pitch_1_XY 114
+#define AXEFX_DEFAULTCC_Pitch_2_XY 115
+#define AXEFX_DEFAULTCC_Reverb_1_XY 116
+#define AXEFX_DEFAULTCC_Reverb_2_XY 117
+#define AXEFX_DEFAULTCC_Wahwah_1_XY 118
+#define AXEFX_DEFAULTCC_Wahwah_2_XY 119
+
+// How many effects do we have? Used for initializing the array later on
 #define AXEFX_EFFECT_FIRST    AXEFX_EFFECTID_Compressor1
 #define AXEFX_EFFECT_LAST     AXEFX_EFFECTID_ToneMatch
 #define AXEFX_EFFECT_COUNT    AXEFX_EFFECT_LAST - AXEFX_EFFECT_FIRST + 1
