@@ -16,6 +16,7 @@ class ExpPedals_Class {
     ExpPedals_Class(int pin);
     boolean update();
     boolean hasChanged();
+    void setHandled();
     int getValue();
     int getRawValue();
 

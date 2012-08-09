@@ -62,6 +62,15 @@ boolean ExpPedals_Class::hasChanged() {
 }
 
 /**
+ * This sets the state of the expression back to unchanged. This is handy
+ * in case you've handled the expressionPedal value and you dont want anything
+ * else to use the updated value after your statement.
+ */
+void ExpPedals_Class::setHandled() {
+  m_bChanged = false;
+}
+
+/**
  * Get the Midi value of this pedal (0 to 127)
  */
 int ExpPedals_Class::getValue() {
