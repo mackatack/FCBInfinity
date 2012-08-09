@@ -25,7 +25,6 @@
   #define PIN_RGBLED_G 1
   #define PIN_RGBLED_B 0
 
-
   // This statement makes the ledControl object available throughout the entire
   // FCBInfinity source code. This object controls all the single color leds and the
   // led-digits on the fcbinfinity board. This does NOT control the RGB led, since we
@@ -75,6 +74,7 @@
   extern ExpPedals_Class ExpPedal1;
   extern ExpPedals_Class ExpPedal2;
 
+
   // A neat little debugging function that just dumps all bytes of a byte array to
   // the serial line
   inline void bytesHexDump(byte * bytes, int length) {
@@ -83,6 +83,6 @@
       Serial.print(bytes[i], HEX);
       Serial.print(" ");
     }
-  }
+  };
 
 #endif //FCBINFINITY_MAIN_H

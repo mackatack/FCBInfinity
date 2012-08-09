@@ -5,6 +5,9 @@
  * Please note that this is VERY much still a work in progress and you should
  * consider the code below still in Alpha/Testing phase. Use at own risk
  *
+ * For more info on all the Arduino functions, check:
+ * http://arduino.cc/en/Reference/HomePage
+ *
  * -Mackatack
  */
 
@@ -62,7 +65,7 @@ _FCBInfButton btnRowLower[] = {
 };
 Bounce btnBankUp = mkBounce(16);
 Bounce btnBankDown = mkBounce(10);
-Bounce btnStompBank = mkBounce(25);
+Bounce btnStompMode = mkBounce(25);
 Bounce btnExpPedalRight = mkBounce(24);
 
 // Initialization of the ExpressionPedals
@@ -71,28 +74,23 @@ ExpPedals_Class ExpPedal2(A7);  // Analog pin 7 (pin 45 on the Teensy)
 
 // Some important variables we'll need later on and want globally, if we want to
 // access them from any file, externalize them in fcbinfinity.h
-
 int     g_iCurrentPreset = 0;       // Here we track the current preset, in case we want to use it
 int     g_iPresetBank = 0;          // The bank controllable by the BankUp and BankDown buttons
 int     g_iStompBoxMode = 0;        // The current stompboxmode, see the loop() function below
-boolean g_bXYToggle = false;        // The X/Y toggler
 
 // The defines for the stompbox modes, see the switch clause in the loop() below
 #define STOMP_MODE_NORMAL     0
 #define STOMP_MODE_10STOMPS   1
 #define STOMP_MODE_LOOPER     2
 
-// Some debugging timer callbacks
-void effectUpdate(FCBTimer * t) {
-  byte test[] = {
-    AXE_MANUFACTURER,
-    AxeMidi.getModel(),
-    0x0E
-  };
-  Serial.println("CALLING FUNCTION 0x0E");
-  AxeMidi.sendSysEx(5, test);
-}
-void timerCallbackRGBLedOff(FCBTimer*) {
+/**
+ * ###########################################################
+ * The main functions of the FCBInfinity project
+ */
+
+// A timer callback to turn off the taptempo led again
+void timerTapTempoLedOff(FCBTimer*) {
+  // Just turn off the green channel of the rgb led again.
   analogWrite(PIN_RGBLED_G, 0);
 }
 
@@ -112,11 +110,11 @@ void onAxeFxSysExMessage(byte * sysex, int length) {
       // Tempo, just flash a led or something
       // There's no additional data
 
-      // Turn on the led
+      // Turn on the taptempo led, lets just use the green channel of the rgb led
       analogWrite(PIN_RGBLED_G, 80);
 
-      // Schedule a new timer that turns off the led again after 100ms
-      FCBTimerManager::addTimeout(100, &timerCallbackRGBLedOff);
+      // Schedule a new timer that turns off the led again after 150ms
+      FCBTimerManager::addTimeout(150, &timerTapTempoLedOff);
       return;
 
     case SYSEX_AXEFX_PRESET_MODIFIED:
@@ -263,17 +261,6 @@ void onAxeFxSysExMessage(byte * sysex, int length) {
 }
 
 /**
- * A seperate function to handle all the midi sysex messages
- * we might receive. Putting this in a separate function allows
- * us to use 'return' in case of errors etc.
- * If it detects a valid sysex for the AxeFx it will pass the message
- * to the handleAxeFxMidiSysEx() function
- */
-void handleMidiSysEx() {
-
-}
-
-/**
  * Changes the current StompBoxMode and lights up the RGB-led
  * to set the current mode. See the loop() function for more info
  */
@@ -284,16 +271,19 @@ void setStompBoxMode(int iNewMode) {
   // Change the RGB led to reflect the new mode.
   switch (g_iStompBoxMode) {
     case STOMP_MODE_NORMAL:
+      // No led
       setRGBLed(0, 0, 0);
       lcd.setCursor(0,1);
       lcd.print("Mode: Normal        ");
       break;
     case STOMP_MODE_10STOMPS:
+      // Blue led
       setRGBLed(0, 0, 50);
       lcd.setCursor(0,1);
       lcd.print("Mode: 10 stomps     ");
       break;
     case STOMP_MODE_LOOPER:
+      // Red led
       setRGBLed(50, 0, 0);
       lcd.setCursor(0,1);
       lcd.print("Mode: Looper        ");
@@ -303,13 +293,15 @@ void setStompBoxMode(int iNewMode) {
 
 /**
  * Sets the RGB-Led to a new color.
+ * @param r,g,b: a range between 0 and 255. Please note that 255 will
+ * burn out your led because there is no resistor between the port and the
+ * led. Please use values between 0 and 130 to keep your led alive.
  */
 inline void setRGBLed(int r, int g, int b) {
   analogWrite(PIN_RGBLED_R, r);
   analogWrite(PIN_RGBLED_G, g);
   analogWrite(PIN_RGBLED_B, b);
 }
-
 
 /**
  * updateIO
@@ -333,8 +325,10 @@ void updateIO() {
   }
   btnBankUp.update();
   btnBankDown.update();
-  btnStompBank.update();
+  btnStompMode.update();
   btnExpPedalRight.update();
+
+  // That's currently all the input we have, all done.
 }
 
 /**
@@ -375,7 +369,9 @@ void doBootSplash() {
   lcd.print("  FCBInfinity v1.0");
   lcd.print("      by Mackatack");
 
+  // Wait 800 ms and clear the LCD.
   delay(800);
+  setLedDigitValue(0);
   lcd.clear();
   lcd.setCursor(0,0);
 }
@@ -389,6 +385,8 @@ void doBootSplash() {
  * @returns The Bounce object to check the button states
  */
 inline Bounce mkBounce(int pin) {
+  // For arduino boards pinMode must be set to INPUT and a digitalWrite(HIGH) is required to
+  // enable the internal resistor, for teensy the INPUT_PULLUP does all this for us.
   pinMode(pin, INPUT_PULLUP);
   return Bounce(pin, 30);
 }
@@ -515,42 +513,15 @@ void loop() {
     FCBTimerManager::processTimers();
   }
 
-  // Lets check if we received a MIDI message
-  if (AxeMidi.hasMessage()) {
-      // Yup we've got data, see AxeMidi.h and MIDI.h for more info
-      // AxeMidi.getType()
-      // AxeMidi.getData1()
-      // AxeMidi.getData2();
-      // AxeMidi.getSysExArray();
-
-      // Since we registered the SysexCallback in the setup()
-      // the AxeMidi will call that function in case there's a new sysex message
-  }
-
-  // Play around with the expression pedals a little
-  if (ExpPedal1.hasChanged()) {
-    // Send CC# External_Control_1 on channel 1
-    AxeMidi.sendControlChange(AXEFX_DEFAULTCC_External_Control_1, ExpPedal1.getValue());
-  }
-
-  // ExpPedal2 has a new value?
-  if (ExpPedal2.hasChanged()) {
-    // Send CC# Out_1_Volume
-    AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Out_1_Volume, ExpPedal2.getValue());
-  }
-
-  // button 5 on the lower row toggles X/Y, it does that in any mode, so we can just
-  // leave this outside of the StompBoxMode logic
-  if (btnRowLower[4].btn.fallingEdge()) {
-    g_bXYToggle = !g_bXYToggle;
-    AxeMidi.sendToggleXY(g_bXYToggle);
-    return;
-  }
-
   // Right, since we're jumping into the stompbox-mode matter, let me quickly explain what
   // I'm trying to accomplish with this. Lets say you have a song where you're only using one preset
   // having 4 buttons to switch presets you wont even use is kind of useless, what if we could use those
   // to control effects as well. The code below allows us to do so.
+
+  // Remember the oldStompBoxMode should we require it (return from looper mode)
+  static int l_iPreviousStompBoxMode = STOMP_MODE_NORMAL;
+
+  // Lets see what mode we're in
   switch (g_iStompBoxMode) {
 
     case STOMP_MODE_NORMAL: {
@@ -561,8 +532,15 @@ void loop() {
 
       // If the stompBox button is pressed, we want to switch to STOMP_MODE_10STOMPS
       // Just return, because all the remaining code below is useless now.
-      // Later on, a long press will change us to looper mode
-      if (btnStompBank.fallingEdge()) {
+      // But first lets check for a button press longer than 2 seconds, which will bring us to
+      // looper mode
+      if (btnStompMode.read() == HIGH && btnStompMode.duration()>=2000) {
+        setStompBoxMode(STOMP_MODE_LOOPER);
+        return;
+      }
+      if (btnStompMode.fallingEdge()) {
+        // Store the old mode
+        l_iPreviousStompBoxMode = STOMP_MODE_NORMAL;
         setStompBoxMode(STOMP_MODE_10STOMPS);
         return;
       }
@@ -582,10 +560,7 @@ void loop() {
 
       // The bottom 4 buttons indicate which preset is selected
       // lets calculate which light to turn on
-      int light = (g_iCurrentPreset-1)%4;
-      // Just a sanitycheck, no need to crash the device over something small as this ;)
-      if (light<0) light=0;
-      if (light>3) light=3;
+      int light = constrain((g_iCurrentPreset-1)%4, 0, 3);
       // Loop through the lower row of buttons and enable or disable the leds
       for(int i=0; i<4; ++i)
         btnRowLower[i].setLed(light==i);
@@ -595,23 +570,20 @@ void loop() {
       // cycle through banks faster by keeping the button pressed
       // For now, KISS :P
       if (btnBankUp.fallingEdge()) {
-        ++g_iPresetBank;
-        if (g_iPresetBank>999) g_iPresetBank = 999;
+        g_iPresetBank = constrain(++g_iPresetBank, 0, 999);
         setLedDigitValue(g_iPresetBank);
         return;
       }
       if (btnBankDown.fallingEdge()) {
-        --g_iPresetBank;
-        if (g_iPresetBank<0) g_iPresetBank=0;
+        g_iPresetBank = constrain(--g_iPresetBank, 0, 999);
         setLedDigitValue(g_iPresetBank);
         return;
       }
 
-
       // Right, the top buttons command a few effect blocks, namely:
       // Drive1, Delay1, Chorus1, Flanger1, Pitch1/Wah1 swapper
       // The latter one has Wah1 ON and Pitch1 OFF in unstomped state, and toggles the states when stomped.
-      // Is the button pressed, lets toggle
+      // Is the button pressed, lets toggle. If it's not set, lets update the led to the same state.
       if (btnRowUpper[0].btn.fallingEdge())
         FCBEffectManager[AXEFX_EFFECTID_Drive1]->toggleActive();
       btnRowUpper[0].setLed(FCBEffectManager[AXEFX_EFFECTID_Drive1]->isActive());
@@ -627,7 +599,6 @@ void loop() {
       if (btnRowUpper[3].btn.fallingEdge())
         FCBEffectManager[AXEFX_EFFECTID_Flanger1]->toggleActive();
       btnRowUpper[3].setLed(FCBEffectManager[AXEFX_EFFECTID_Flanger1]->isActive());
-
 
       // This is the tricky one because it controls two effects
       // In off state, WAH1 will be controlled by expPedal1ToeSwitch, in on state
@@ -649,8 +620,15 @@ void loop() {
 
       // If the stompBox button is pressed, we want to switch back to STOMP_MODE_NORMAL
       // Just return, because all the remaining code below is useless now.
-      // Later on, a long press will change us to looper mode
-      if (btnStompBank.fallingEdge()) {
+      // But first lets check for a button press longer than 2 seconds, which will bring us to
+      // looper mode
+      if (btnStompMode.read() == HIGH && btnStompMode.duration()>=2000) {
+        setStompBoxMode(STOMP_MODE_LOOPER);
+        return;
+      }
+      if (btnStompMode.fallingEdge()) {
+        // Store the old mode
+        l_iPreviousStompBoxMode = STOMP_MODE_10STOMPS;
         setStompBoxMode(STOMP_MODE_NORMAL);
         return;
       }
@@ -676,7 +654,7 @@ void loop() {
       btnRowUpper[4].setLed(FCBEffectManager[AXEFX_EFFECTID_Pitch1]->isPlaced());
 
       // The bottom row will have four extra effect toggles now:
-      // Rev1, Multidelay1,
+      // Rev1, Multidelay1, Phaser1 and Rotary1
       if (btnRowLower[0].btn.fallingEdge())
         FCBEffectManager[AXEFX_EFFECTID_Reverb1]->toggleActive();
       btnRowLower[0].setLed(FCBEffectManager[AXEFX_EFFECTID_Reverb1]->isActive());
@@ -696,60 +674,109 @@ void loop() {
       // In this mode the bankUp/Down buttons react a little different; instead of changing banks
       // they will just move to the next or previous preset on the AxeFx. We'll calculate the new
       // bank automatically when we receive the preset changed SysEx from the AxeFx.
-      if (btnBankUp.fallingEdge()) {
+      if (btnBankUp.fallingEdge())
         AxeMidi.sendPresetChange(g_iCurrentPreset+1);
-        return;
-      }
-      if (btnBankDown.fallingEdge()) {
+      if (btnBankDown.fallingEdge())
         AxeMidi.sendPresetChange(g_iCurrentPreset-1);
-        return;
-      }
-
-      // @TODO: implement the stompbox button logic
 
     } // end of STOMP_MODE_10STOMPS
     break;
 
     case STOMP_MODE_LOOPER: {
       // This mode changes the top buttons into the controls for the looper in the AxeFx
-      // I will implement this later...
+
+      // If the mode button is pressed, switch back to the previous mode.
+      if (btnStompMode.fallingEdge()) {
+        // Restore the old mode
+        setStompBoxMode(l_iPreviousStompBoxMode);
+        return;
+      }
+
+      // The basic implementation of the looper buttons. Eventually I want the indicator leds
+      // to show the metronome speed and the current mode. For now just turn on all the leds.
+      for(int i=0; i<4; ++i) {
+        btnRowUpper[i].setLed(true);
+        btnRowLower[i].setLed(true);
+      }
+
+      // see FCBEffectManager.h for the various CC commands
+      // The top row controls the looper record, play, once, dub and rec
+      if (btnRowUpper[0].btn.fallingEdge())
+        AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Looper_Record, 127);
+      if (btnRowUpper[1].btn.fallingEdge())
+        AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Looper_Play, 127);
+      if (btnRowUpper[2].btn.fallingEdge())
+        AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Looper_Once, 127);
+      if (btnRowUpper[3].btn.fallingEdge())
+        AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Looper_Dub, 127);
+      if (btnRowUpper[4].btn.fallingEdge())
+        AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Looper_Rev, 127);
+
+      // The bottom row controls the looper bypass, Half-speed, Undo and Metronome.
+      // Last bottom row button still handles the X/Y, see below
+      if (btnRowLower[0].btn.fallingEdge())
+        AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Looper_Bypass, 127);
+      if (btnRowLower[1].btn.fallingEdge())
+        AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Looper_HalfSpeed, 127);
+      if (btnRowLower[2].btn.fallingEdge())
+        AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Looper_Undo, 127);
+      if (btnRowLower[3].btn.fallingEdge())
+        AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Looper_Metronome, 127);
+
+      // In this mode the bankUp/Down buttons react a little different; instead of changing banks
+      // they will just move to the next or previous preset on the AxeFx. We'll calculate the new
+      // bank automatically when we receive the preset changed SysEx from the AxeFx.
+      if (btnBankUp.fallingEdge())
+        AxeMidi.sendPresetChange(g_iCurrentPreset+1);
+      if (btnBankDown.fallingEdge())
+        AxeMidi.sendPresetChange(g_iCurrentPreset-1);
 
     } // end of STOMP_MODE_LOOPER
     break;
 
-  }
+  } // end of stompBoxMode switch
+
+
+  // Play around with the expression pedals a little, Send CC# External_Control_1 on channel 1
+  // Moved this below the switch, so we can override the functionality of the expressionPedals
+  // in the various different modes, if we wish.
+  if (ExpPedal1.hasChanged())
+    AxeMidi.sendControlChange(AXEFX_DEFAULTCC_External_Control_1, ExpPedal1.getValue());
+
+  // ExpPedal2 has a new value? Send CC# Input_Volume
+  if (ExpPedal2.hasChanged())
+    AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Input_Volume, ExpPedal2.getValue());
 
   // Lower button 4 always controls the XY mode, this assumes there is always a AMP block in your
   // preset, the current XY state is copied off that Amp1 block and toggles all the other effects
-  if (btnRowLower[4].btn.fallingEdge()) {
+  if (btnRowLower[4].btn.fallingEdge())
     AxeMidi.sendToggleXY(!FCBEffectManager[AXEFX_EFFECTID_Amp1]->isXMode());
-  }
   btnRowLower[4].setLed(!FCBEffectManager[AXEFX_EFFECTID_Amp1]->isXMode());
 
   // Button under exppedal1 enables or disables WAH or Pitch1
   if (btnExpPedalRight.fallingEdge()) {
+    // @TODO: Implement this
     Serial.println("TIPTOEBUTTON!!!");
   }
 
-
-  // ##############################
-  // Some additional io debugging functions below
-
-  // Update the button states, when a button is pressed set
-  // the LED-Digits to the button id, toggle the indicator led
-  // that is associated with the button
-  for(int i=0; i<5; ++i) {
-    // Check the upper row of buttons
-    if (btnRowUpper[i].btn.fallingEdge()) {
-      btnRowUpper[i].setLed(!btnRowUpper[i].ledStatus);
-      return;
-    }
-
-    // Check the lower row of buttons
-    if (btnRowLower[i].btn.fallingEdge()) {
-      btnRowLower[i].setLed(!btnRowLower[i].ledStatus);
-      return;
-    }
+  // Lets check if we received a MIDI message
+  // Or lets not, since we're not doing anything with incoming -non sysex-
+  // midi messages at the moment. But lets leave this in in case someone else
+  // does want to do something with incoming midi messages.
+  // The midi class will call our onAxeFxSysExMessage() callback when we receive
+  // an incoming SysEx from the AxeFx
+  /*
+  if (AxeMidi.hasMessage()) {
+    // We've got an incoming midi message, see AxeMidi.h and io_MIDI.h for more info
+    // on message types and more info. You could also use the callback features in
+    // the Midi class to separate this logic.
+    // AxeMidi.getType()
+    // AxeMidi.getData1()
+    // AxeMidi.getData2();
+    // AxeMidi.getSysExArray();
   }
+  */
 
 } // loop()
+
+// End of FCBInfinity.ino

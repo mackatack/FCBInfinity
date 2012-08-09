@@ -121,7 +121,7 @@
 #define AXEFX_DEFAULTCC_Looper_Dub 31
 #define AXEFX_DEFAULTCC_Looper_Rev 32
 #define AXEFX_DEFAULTCC_Looper_Bypass 33
-#define AXEFX_DEFAULTCC_Looper_Half-speed 120
+#define AXEFX_DEFAULTCC_Looper_HalfSpeed 120
 #define AXEFX_DEFAULTCC_Looper_Undo 121
 #define AXEFX_DEFAULTCC_Looper_Metronome 122
 
