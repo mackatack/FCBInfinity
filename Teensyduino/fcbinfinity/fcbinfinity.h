@@ -16,6 +16,7 @@
   #include "io_MIDI.h"
   #include "io_AxeMidi.h"
   #include "io_ExpPedals.h"
+  #include "modes_DefaultMode.h"
 
   // Pinouts for various IO on the teensy board.
   // See http://www.pjrc.com/teensy/teensyduino.html for more information about the pinout
@@ -73,6 +74,11 @@
   // the .ino file
   extern ExpPedals_Class ExpPedal1;
   extern ExpPedals_Class ExpPedal2;
+
+  // Make the function to set modes public throughout the project
+  extern void setCurrentMode(FCBMode* newMode);
+  extern FCBMode* getCurrentMode();
+  extern FCBMode* getPreviousMode();
 
 
   // A neat little debugging function that just dumps all bytes of a byte array to
