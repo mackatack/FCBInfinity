@@ -61,6 +61,9 @@ class AxeMidi_Class {
     boolean isInitialized() {
       return m_bFirmwareVersionReceived;
     }
+    boolean isTunerOn() {
+      return m_bTunerOn;
+    }
 
     /* Check for new incoming MIDI messages, call this once every loop cycle */
     boolean handleMidi();
@@ -80,6 +83,9 @@ class AxeMidi_Class {
     void registerAxeSysExReceiveCallback( void (*func)(byte*,int) );
     void registerRawSysExReceiveCallback( void (*func)(byte*,int) );
 
+    void registerAxeFxConnectedCallback( void (*func)() );
+    void registerAxeFxDisconnectedCallback( void (*func)() );
+
     /* gets and sets the midi channel this library will send messages on */
     void setMidiSendChannel(int channel) {m_iAxeChannel=channel;}
     int setMidiSendChannel() {return m_iAxeChannel;}
@@ -89,11 +95,16 @@ class AxeMidi_Class {
     int m_iAxeModel;
     int m_iAxeChannel;
     boolean m_bFirmwareVersionReceived;
+    boolean m_bTunerOn;
 
     /* Function pointer to a user defined function that handles raw sysex messages */
     void (*m_fpRawSysExCallback)(byte * sysex, int length);
     /* Function pointer to a user defined function that handles axefx sysex messages */
     void (*m_fpAxeFxSysExCallback)(byte * sysex, int length);
+
+    /* Function pointer to a user defined function that handles the connection of an AxeFx */
+    void (*m_fpAxeFxConnectedCallback)();
+    void (*m_fpAxeFxDisconnectedCallback)();
 };
 
 extern AxeMidi_Class AxeMidi;

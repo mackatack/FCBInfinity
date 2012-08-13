@@ -12,11 +12,13 @@ AxeMidi_Class AxeMidi;
  */
 AxeMidi_Class::AxeMidi_Class() {
   m_iAxeModel = 3;
-  m_bFirmwareVersionReceived;
+  m_bFirmwareVersionReceived = false;
+  m_bTunerOn = false;
   m_fpRawSysExCallback = NULL;
   m_fpAxeFxSysExCallback = NULL;
+  m_fpAxeFxConnectedCallback = NULL;
+  m_fpAxeFxDisconnectedCallback = NULL;
   m_iAxeChannel = 1;
-  //sendLoopbackCheck();
 }
 
 // Initialize the static constant that holds the note names
@@ -24,13 +26,31 @@ const char *AxeMidi_Class::notes[] = {
   "A ", "A#", "B ", "C ", "C#", "D ", "D#", "E ", "F ", "F#", "G ", "G#"
 };
 
+
 /**
  * Updates the library and checks for new midi messages, call this once
  * every loop, or only after all the modules have had a chance to process
  * the midi message or you might lose messages.
  */
+elapsedMillis l_eTimeSinceLastAxeFxSysEx;
+elapsedMillis l_eTimeSinceLastTunerMessage;
 boolean AxeMidi_Class::handleMidi() {
 
+  // This function gets called every arduino loop. We want to call the disconnection callback
+  // after the 3 seconds of silence on the AxeFx. This only works if the AxeFx actually sends something
+  // periodically so it expects TapTempo realtime messages to be sent.
+  if (m_bFirmwareVersionReceived && l_eTimeSinceLastAxeFxSysEx>3000) {
+    m_bFirmwareVersionReceived = false;
+    if (m_fpAxeFxDisconnectedCallback != NULL)
+      (m_fpAxeFxDisconnectedCallback)();
+  }
+
+  // Check if the tuner is still on.
+  if (m_bTunerOn && l_eTimeSinceLastTunerMessage>500) {
+    m_bTunerOn = false;
+  }
+
+  // Look for new messages and return if there are no new messages.
   if (!MIDINEW.read(MIDI_CHANNEL_OMNI)) {
     m_bHasMessage = false;
     return false;
@@ -64,12 +84,22 @@ boolean AxeMidi_Class::handleMidi() {
         sysex[2] == AXE_MANUFACTURER_B2 &&
         sysex[3] == AXE_MANUFACTURER_B3) {
 
-      // In case it's a firmware version response, lets
-      // store the correct model info
-      if (sysex[5] == SYSEX_AXEFX_FIRMWARE_VERSION ||
-          sysex[5] == SYSEX_AXEFX_FIRMWARE_VERSION_AXE2) {
+      // Reset the AxeFx disconnection timer
+      l_eTimeSinceLastAxeFxSysEx = 0;
+
+      // If we havn't already received the AxeFx model, lets
+      // update and call the initialization callback
+      if (!m_bFirmwareVersionReceived) {
         m_bFirmwareVersionReceived=true;
         m_iAxeModel = sysex[4];
+        if (m_fpAxeFxConnectedCallback != NULL)
+          (m_fpAxeFxConnectedCallback)();
+      }
+
+      // If tuner message, set tuner to on and reset the timer
+      if (sysex[5] == SYSEX_AXEFX_REALTIME_TUNER) {
+        m_bTunerOn = true;
+        l_eTimeSinceLastTunerMessage = 0;
       }
 
       // Lets see if we have a valid callback function for AxeFx sysex messages
@@ -129,10 +159,12 @@ void AxeMidi_Class::sendPresetChange(int iAxeFxPresetNumber) {
   // It seems the Axe wont do subsequent preset changes
   // unless we send it some other midi message. Lets just keep this
   // bank mode switcher code in place for now
-  sendControlChange(0, 0);
+
+  iAxeFxPresetNumber--;
+  sendControlChange(0, iAxeFxPresetNumber / 128);
 
   // Send the PC message
-  sendProgramChange(iAxeFxPresetNumber-1);
+  sendProgramChange(iAxeFxPresetNumber);
 }
 
 /**
@@ -300,4 +332,10 @@ void AxeMidi_Class::registerAxeSysExReceiveCallback( void (*func)(byte*,int) ) {
 }
 void AxeMidi_Class::registerRawSysExReceiveCallback( void (*func)(byte*,int) ) {
   m_fpRawSysExCallback = func;
+}
+void AxeMidi_Class::registerAxeFxConnectedCallback( void (*func)() ) {
+  m_fpAxeFxConnectedCallback = func;
+}
+void AxeMidi_Class::registerAxeFxDisconnectedCallback( void (*func)() ) {
+  m_fpAxeFxDisconnectedCallback = func;
 }

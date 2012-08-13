@@ -35,6 +35,7 @@ boolean ExpPedals_Class::update() {
   // The new value is different, try to smooth out the new values
   // by calculating the average value over the last 3 values.
   v = (m_iPrevValue2 + m_iPrevValue1 + m_iValue + v)/4;
+  v = constrain(v, 0, 127);
 
   // Shift the previous values
   m_iPrevValue2 = m_iPrevValue1;
