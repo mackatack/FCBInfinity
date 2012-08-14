@@ -1,6 +1,6 @@
 # Installation of the FCBInfinity #
 
-<font color="red">[WORK IN PROGRESS] This document is still in draft, I'll be adding much more information over the next couple of days!</font>
+<p color="red">[WORK IN PROGRESS] This document is still in draft, I'll be adding much more information over the next couple of days!</p>
 
 Please note, the installation of the FCBInfinity is NOT a simple plug and play modification. You'll need to drill, solder, paint, etc. so it's not for the faint of heart. However once you complete the installation you'll end up with one of the most versatile pedalboards. Since the programming is open source you can program the unit to control any device you want via MIDI. I still only recommend you perform this modification yourself if you're handy with tools. You're looking for an easier modification I'd recommend the UnO or Eureka chip, which is a simple plug and play modification.
 
@@ -20,11 +20,11 @@ Lets **not** start with gutting your old Pedal board, but first lets focus on ge
 Take the FCBInfinity PCB and plug in the components in the right locations. You'll end up with a board as seen in the pictures below. Please notice that the Max7219 chip and the three Led-Digits need to be on the bottom side. Please make sure that the components are in the correct position, desoldering a component that's upside-down is no fun.  
 There's no need to push the Teensy board all the way into the board, in fact you might make a short somewhere if you do. Just push in the Teensy just far enough so you can solder it properly at the bottom side of the board.
 
-**Important**: The FCBInfinity v3 board gives room to add 4 extra buttons or leds beside the regular push buttons. If you need more than four, you can use the 8 pins that are located on the inside of the Teensy, marked PA0 to PA7 (see pictures below). I recommend you solder [angled header pins](http://www.conrad.nl/medias/global/ce/7000_7999/7300/7340/7341/734133_BB_00_FB.EPS_250.jpg) ([link](http://www.conrad.nl/ce/nl/product/734099/Male-connector-RM-254-haaks-Rastermaat-254-mm-Aantal-polen-2-x-4-Nominale-stroom-3-A-STL2-1470AGT-008U-MPE-Garry-1/0224620&ref=list)) to these 8 holes BEFORE soldering the Teensy onto the FCBInfinity board! These header pins are very cheap, so if you are able to find them I'd recommend you solder them on, so you can add upto 12 additional buttons or LEDs.
+**Important**: The FCBInfinity v3 board gives room to add 4 extra buttons or leds beside the regular push buttons. If you need more than four, you can use the 8 pins that are located on the inside of the Teensy, marked PA0 to PA7 (see the last picture below). I recommend you solder [angled header pins](http://www.conrad.nl/medias/global/ce/7000_7999/7300/7340/7341/734133_BB_00_FB.EPS_250.jpg) ([link](http://www.conrad.nl/ce/nl/product/734099/Male-connector-RM-254-haaks-Rastermaat-254-mm-Aantal-polen-2-x-4-Nominale-stroom-3-A-STL2-1470AGT-008U-MPE-Garry-1/0224620&ref=list)) to these 8 holes BEFORE soldering the Teensy onto the FCBInfinity board! These header pins are very cheap, so if you are able to find them I'd recommend you solder them on, so you can add upto 12 additional buttons or LEDs.
   
 [<img src="resources/20120726_223457.jpg?raw=true" height=100/>](resources/20120726_223457.jpg)
-[<img src="resources/20120726_224826.jpg?raw=true" height=100/>](resources/20120726_223457.jpg)
-[<img src="resources/20120726_224902.jpg?raw=true" height=100/>](resources/20120726_223457.jpg)
+[<img src="resources/20120726_224826.jpg?raw=true" height=100/>](resources/20120726_224826.jpg)
+[<img src="resources/20120726_224902.jpg?raw=true" height=100/>](resources/20120726_224902.jpg)
 
 ## Step 1.2: Testing your board##
 Once everything is soldered onto the new circuit board, we need to test it. Lets first start by connecting the USB cable to your computer and the Teensy board. The Led Digits might light up, then again they might not. In any case there should be a blinking led on the Teensy board. That's the default program that comes with a fresh new Teensy. If that works we can upload the the FCBInfinity software.  
