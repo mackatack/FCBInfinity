@@ -13,7 +13,3 @@ Did I mention this was open source? :P Here it is: [FCBInfinity sourcecode](http
 (Please note that the source code is still in beta phase and will be tidied up greatly soon)
 
 ![](http://mackatackblog.files.wordpress.com/2012/06/wpid-20120626_0924241.jpg?w=630)
-
-<script>
-alert('test');
-</script>
