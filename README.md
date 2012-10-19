@@ -9,5 +9,11 @@ For more info while I work on this project, see: [http://mackatackblog.wordpress
 FAQ: [FCBInfinity Frequently Asked Questions](https://github.com/mackatack/FCBInfinity/blob/master/faq.md)  
 Partlist: [FCBInfinity partlist](https://github.com/mackatack/FCBInfinity/blob/master/Partlist.md)
 
+Did I mention this was open source? :P Here it is: [FCBInfinity sourcecode](https://github.com/mackatack/FCBInfinity/tree/master/Teensyduino/fcbinfinity)  
+(Please note that the source code is still in beta phase and will be tidied up greatly soon)
+
 ![](http://mackatackblog.files.wordpress.com/2012/06/wpid-20120626_0924241.jpg?w=630)
 
+<script>
+alert('test');
+</script>
