@@ -210,6 +210,10 @@ public:
   bool toggleActive() { setActive(!isActive()); }
   bool activate() { setActive(true); }
   bool deactivate() { setActive(false); }
+  void updateParams() {
+    Serial.println("SUPERCLASS Updating looper params");
+  };
+  void handleParamUpdate(int paramID, int value) {};
   void setActive(bool active) {
     if (state == -1) return;
     if (active)
@@ -227,6 +231,93 @@ protected:
 };
 
 /**
+ * Custom class for handling the Looper Block's parameters
+ */
+class FCBLooperEffect_Class: public FCBEffect {
+  protected:
+    bool bPlay, bRecord, bOnce, bDub, bRev, bBypass, bHalfSpeed, bUndo, bMetronome;
+  public:
+  FCBLooperEffect_Class(int effectID, int typeID):
+    FCBEffect::FCBEffect(effectID, typeID) {
+    bPlay, bRecord, bOnce, bDub, bRev, bBypass, bHalfSpeed, bUndo, bMetronome = false;
+  }
+  void updateStatus(int status) {
+    bRecord = (status & B00000001) == B00000001;
+    bPlay = (status & B00000010) == B00000010;
+    bOnce = (status & B00000100) == B00000100;
+    bDub = (status & B00001000) == B00001000;
+    bRev = (status & B00010000) == B00010000;
+    bHalfSpeed = (status & B00100000) == B00100000;
+    bUndo = (status & B01000000) == B01000000;
+  }
+  void setPlay(bool state) {
+    bPlay = state;
+    AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Looper_Play, state?127:0);
+  }
+  void setRecord(bool state) {
+    bRecord = state;
+    AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Looper_Record, state?127:0);
+  }
+  void setOnce(bool state) {
+    bOnce = state;
+    AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Looper_Once, state?127:0);
+  }
+  void setDub(bool state) {
+    bDub = state;
+    AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Looper_Dub, state?127:0);
+  }
+  void setReverse(bool state) {
+    bRev = state;
+    AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Looper_Rev, state?127:0);
+  }
+  void setBypass(bool state) {
+    bBypass = state;
+    AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Looper_Bypass, state?127:0);
+  }
+  void setHalfSpeed(bool state) {
+    bHalfSpeed = state;
+    AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Looper_HalfSpeed, state?127:0);
+  }
+  void setUndo(bool state) {
+    bUndo = state;
+    AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Looper_Undo, state?127:0);
+  }
+  void setMetronome(bool state) {
+    bMetronome = state;
+    AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Looper_Metronome, state?127:0);
+  }
+
+  bool getPlay() {
+    return bPlay;
+  }
+  bool getRecord() {
+    return bRecord;
+  }
+  bool getOnce() {
+    return bOnce;
+  }
+  bool getDub() {
+    return bDub;
+  }
+  bool getReverse() {
+    return bRev;
+  }
+  bool getBypass() {
+    return bBypass;
+  }
+  bool getHalfSpeed() {
+    return bHalfSpeed;
+  }
+  bool getUndo() {
+    return bUndo;
+  }
+  bool getMetronome() {
+    return bMetronome;
+  }
+};
+extern FCBLooperEffect_Class FCBLooperEffect;
+
+/**
  * This static class stores all the FCBEffect objects that control the various
  * different effect block on the AxeFx. If we check ../documentation/AxeFX Effect ID List.csv
  * we can see that currently the effectblocks range from effectID 100 to 170 (excluding the dummy)
@@ -236,7 +327,12 @@ class FCBEffectManager_Class {
 public:
   FCBEffectManager_Class() {
     for (int i=0; i<=AXEFX_EFFECT_COUNT; ++i) {
-      effects[i] = new FCBEffect(i+AXEFX_EFFECT_FIRST, effectTypes[i]);
+      //if (i == AXEFX_EFFECTID_Looper) {
+      //  effects[i] = (FCBEffect*)&FCBLooperEffect;
+      //}
+      //else {
+        effects[i] = new FCBEffect(i+AXEFX_EFFECT_FIRST, effectTypes[i]);
+      //}
     }
     dummy = new FCBEffect(0, 0);;
   }
@@ -268,7 +364,6 @@ private:
   FCBEffect * effects[AXEFX_EFFECT_COUNT];
   FCBEffect * dummy;
 };
-
 extern FCBEffectManager_Class FCBEffectManager;
 
 #endif

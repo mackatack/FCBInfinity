@@ -4,6 +4,8 @@
 
 #include "io_MIDI.h"
 
+#include "utils_FCBEffectManager.h"
+
 /* Main instance the class comes pre-instantiated, just like the Midi class does. */
 AxeMidi_Class AxeMidi;
 
@@ -100,6 +102,40 @@ boolean AxeMidi_Class::handleMidi() {
       if (sysex[5] == SYSEX_AXEFX_REALTIME_TUNER) {
         m_bTunerOn = true;
         l_eTimeSinceLastTunerMessage = 0;
+      }
+
+      if (sysex[5] == SYSEX_AXEFX_LOOPER_STATUS) {
+        FCBLooperEffect.updateStatus(sysex[6]);
+      }
+
+      // If tuner message, set tuner to on and reset the timer
+      if (sysex[5] == SYSEX_AXEFX_SET_PARAMETER) {
+        int effectID = 0, paramID = 0, value = 0, msg = 0;
+        if (m_iAxeModel>=3) {
+          // AxeFx2
+          effectID = sysex[6] + (128 * sysex[7]);
+          paramID = sysex[8] + (128 * sysex[9]);
+          value = sysex[10] + (128 * sysex[11]) + (16384 * sysex[12]);
+          msg = 13;
+        } else {
+          // Older models
+          effectID = sysex[6] + (16 * sysex[7]); // extract block num, param num, and param value
+          paramID = sysex[8] + (16 * sysex[9]);
+          value = sysex[10] + (16 * sysex[11]);
+          msg = 12;
+        }
+        Serial.print("Param Value: effect");
+        Serial.print(effectID);
+        Serial.print(", paramID: ");
+        Serial.print(paramID);
+        Serial.print(", value: ");
+        Serial.print(value);
+        Serial.print(", bytes: ");
+        for(int b=msg;b<length-2;b++) {
+          if (sysex[b]==0) break;
+          Serial.print(sysex[b], BYTE);
+        }
+        Serial.println(".");
       }
 
       // Lets see if we have a valid callback function for AxeFx sysex messages
@@ -302,6 +338,61 @@ void AxeMidi_Class::requestBypassStates() {
     SYSEX_EMPTY_BYTE
   };
   sendSysEx(6, (byte*)msgRequestBypassStates);
+}
+
+/**
+ * Tell the AxeFx to start sending us looper updates
+ */
+void AxeMidi_Class::requestLooperUpdates(bool enable) {
+  static byte msgRequestLooperUpdates[] = {
+    AXE_MANUFACTURER,
+    m_iAxeModel,
+    SYSEX_AXEFX_LOOPER_STATUS,
+    0,
+    SYSEX_EMPTY_BYTE
+  };
+  msgRequestLooperUpdates[5] = (enable)?1:0;
+  sendSysEx(7, (byte*)msgRequestLooperUpdates);
+
+  //F0 00 01 74 03 23 01 24 F7
+}
+void AxeMidi_Class::requestLooperUpdates() {
+  requestLooperUpdates(true);
+}
+
+/**
+ * Ask the Axe To Send us some information about a effect's parameters
+ * http://wiki.fractalaudio.com/index.php?title=Axe-Fx_SysEx_Documentation#MIDI_GET_PATCH
+ */
+void AxeMidi_Class::requestEffectParameter(int effectID, int paramID, int value=0, int query=0) {
+  static byte msgRequestEffectParameter[] = {
+    AXE_MANUFACTURER,
+    m_iAxeModel,
+    SYSEX_AXEFX_SET_PARAMETER,
+    0,0,
+    0,0,
+    0,0,0, // Query
+    SYSEX_EMPTY_BYTE,
+    SYSEX_EMPTY_BYTE // Extra byte for AxeFx2 message
+  };
+
+  if (m_iAxeModel>=3) {
+    // AxeFx2
+    msgRequestEffectParameter[5] = effectID & 0x7F;
+    msgRequestEffectParameter[6] = (effectID >> 7) & 0x7F;
+    msgRequestEffectParameter[7] = paramID & 0x7F;
+    msgRequestEffectParameter[8] = (paramID >> 7) & 0x7F;
+    msgRequestEffectParameter[12] = query;
+    sendSysEx(14, (byte*)msgRequestEffectParameter);
+  } else {
+    // Older models
+    msgRequestEffectParameter[5] = effectID & 0xF;
+    msgRequestEffectParameter[6] = (effectID >> 4) & 0xF;
+    msgRequestEffectParameter[7] = paramID & 0xF;
+    msgRequestEffectParameter[8] = (paramID >> 4) & 0xF;
+    msgRequestEffectParameter[11] = query;
+    sendSysEx(13, (byte*)msgRequestEffectParameter);
+  }
 }
 
 /**

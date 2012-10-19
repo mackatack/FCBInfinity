@@ -73,16 +73,16 @@ _FCBInfButton btnExpPedalRightS = {1, 4, btnExpPedalRight, false};
 ExpPedals_Class ExpPedal1(A6);  // Analog pin 6 (pin 44 on the Teensy)
 ExpPedals_Class ExpPedal2(A7);  // Analog pin 7 (pin 45 on the Teensy)
 
-// Some important variables we'll need later on and want globally, if we want to
-// access them from any file, externalize them in fcbinfinity.h
-int     g_iCurrentPreset = 0;       // Here we track the current preset, in case we want to use it
-int     g_iPresetBank = 0;          // The bank controllable by the BankUp and BankDown buttons
-int     g_iStompBoxMode = 0;        // The current stompboxmode, see the loop() function below
-
 // The defines for the stompbox modes, see the switch clause in the loop() below
 #define STOMP_MODE_NORMAL     0
 #define STOMP_MODE_10STOMPS   1
 #define STOMP_MODE_LOOPER     2
+
+// Some important variables we'll need later on and want globally, if we want to
+// access them from any file, externalize them in fcbinfinity.h
+int     g_iCurrentPreset = 0;                     // Here we track the current preset, in case we want to use it
+int     g_iPresetBank = 0;                        // The bank controllable by the BankUp and BankDown buttons
+int     g_iStompBoxMode = STOMP_MODE_10STOMPS;    // The current stompboxmode, see the loop() function below
 
 // Pointers to the currently active and previously active mode
 FCBMode * g_pCurrentMode = NULL;
@@ -320,6 +320,7 @@ void setStompBoxMode(int iNewMode) {
       setRGBLed(50, 0, 0);
       lcd.setCursor(0,1);
       lcd.print("Mode: Looper        ");
+      AxeMidi.requestLooperUpdates();
       break;
   }
 }
@@ -426,6 +427,39 @@ inline Bounce mkBounce(int pin) {
 }
 
 /**
+ * This is a little bit more tricky function of FCBInfinity. The WAH effect stomp button
+ * control whether the Exp1 pedal controls the WAH or the Pitch1.
+ */
+void handleWahPitchToggle(_FCBInfButton* btnObj) {
+
+  // Set the led to reflect the bypass state of the Pitch1
+  btnObj->setLed(FCBEffectManager[AXEFX_EFFECTID_Pitch1]->isActive());
+
+  if (FCBEffectManager[AXEFX_EFFECTID_Pitch1]->isActive()) {
+    // Pitch1 is enabled, lets add the behavior in this state.
+    // Exp1 Controls Pitch1 via Control2
+
+    // Button pressed? Disable Pitch1, that's it :P
+    if (btnObj->btn.fallingEdge()) {
+      FCBEffectManager[AXEFX_EFFECTID_Pitch1]->toggleActive();
+      btnObj->setLed(false);
+      return true;
+    }
+  }
+  else {
+    // Pitch1 is disabled, Exp1 Controls WAH via Control1
+
+    // Button pressed? Send Control1=0, enable Pitch1 and send Control2=0
+    if (btnObj->btn.fallingEdge()) {
+      AxeMidi.sendControlChange(AXEFX_DEFAULTCC_External_Control_1, 0);
+      FCBEffectManager[AXEFX_EFFECTID_Pitch1]->toggleActive();
+      AxeMidi.sendControlChange(AXEFX_DEFAULTCC_External_Control_2, 0);
+      return true;
+    }
+  }
+}
+
+/**
  * This little function makes it easier for us to bind a button and associated led to a specific effect
  * on the AxeFx and allows us to define a fallback effect in case the given effect is not used, for Example:
  * handleEffectStompButton(btnRowLower[0], AXEFX_EFFECTID_Reverb1, AXEFX_EFFECTID_Reverb2);
@@ -524,7 +558,6 @@ void setup() {
   lcd.print(" Waiting for AxeFX! ");
 
   FCBTimerManager::addInterval(1000, &timerUpdateEffectStates);
-
 } // setup()
 
 /**
@@ -635,11 +668,7 @@ void loop() {
       // In off state, WAH1 will be controlled by expPedal1ToeSwitch, in on state
       // Pitch1 will be controlled. This way I can switch between whammy and wah
       // with one stomp.
-      // @TODO: implement this
-      //FCBEffectManager[AXEFX_EFFECTID_Wahwah1
-      //FCBEffectManager[AXEFX_EFFECTID_Pitch1
-      btnRowUpper[4].setLed(FCBEffectManager[AXEFX_EFFECTID_Pitch1]->isPlaced());
-
+      handleWahPitchToggle(&btnRowUpper[4]);
 
     } // end of STOMP_MODE_NORMAL
     break;
@@ -670,15 +699,15 @@ void loop() {
       if (handleEffectStompButton(&btnRowUpper[2], AXEFX_EFFECTID_Chorus1,      AXEFX_EFFECTID_Chorus2)) return;
       if (handleEffectStompButton(&btnRowUpper[3], AXEFX_EFFECTID_Flanger1,     AXEFX_EFFECTID_Flanger2)) return;
 
-      // @TODO: implement top row button 4
-      btnRowUpper[4].setLed(FCBEffectManager[AXEFX_EFFECTID_Pitch1]->isPlaced());
+      // Handle the WAH/Pitch toggle
+      handleWahPitchToggle(&btnRowUpper[4]);
 
       // The bottom row will have four extra effect toggles now:
       // Rev1, Multidelay1, Phaser1 and Rotary1
       if (handleEffectStompButton(&btnRowLower[0], AXEFX_EFFECTID_Reverb1,      AXEFX_EFFECTID_Reverb2)) return;
       if (handleEffectStompButton(&btnRowLower[1], AXEFX_EFFECTID_Multidelay1,  AXEFX_EFFECTID_Multidelay2,   AXEFX_EFFECTID_Delay2)) return;
       if (handleEffectStompButton(&btnRowLower[2], AXEFX_EFFECTID_Phaser1,      AXEFX_EFFECTID_Phaser2)) return;
-      if (handleEffectStompButton(&btnRowLower[3], AXEFX_EFFECTID_Rotary1,      AXEFX_EFFECTID_Rotary2,       AXEFX_EFFECTID_Pitch1)) return;
+      if (handleEffectStompButton(&btnRowLower[3], AXEFX_EFFECTID_Rotary1,      AXEFX_EFFECTID_Rotary2)) return;
 
       // In this mode the bankUp/Down buttons react a little different; instead of changing banks
       // they will just move to the next or previous preset on the AxeFx. We'll calculate the new
@@ -701,40 +730,50 @@ void loop() {
       // If the mode button is pressed, switch back to the previous mode.
       if (btnStompMode.fallingEdge()) {
         // Restore the old mode
+        AxeMidi.requestLooperUpdates(false);
         setStompBoxMode(l_iPreviousStompBoxMode);
         return;
       }
 
-      // The basic implementation of the looper buttons. Eventually I want the indicator leds
-      // to show the metronome speed and the current mode. For now just turn on all the leds.
-      for(int i=0; i<4; ++i) {
-        btnRowUpper[i].setLed(true);
-        btnRowLower[i].setLed(true);
-      }
-
       // see FCBEffectManager.h for the various CC commands
-      // The top row controls the looper record, play, once, dub and rec
-      if (btnRowUpper[0].btn.fallingEdge())
-        AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Looper_Record, 127);
-      if (btnRowUpper[1].btn.fallingEdge())
-        AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Looper_Play, 127);
-      if (btnRowUpper[2].btn.fallingEdge())
-        AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Looper_Once, 127);
-      if (btnRowUpper[3].btn.fallingEdge())
-        AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Looper_Dub, 127);
-      if (btnRowUpper[4].btn.fallingEdge())
-        AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Looper_Rev, 127);
-
-      // The bottom row controls the looper bypass, Half-speed, Undo and Metronome.
-      // Last bottom row button still handles the X/Y, see below
+      // The bottom row controls the looper record, play, once, dub and x/y
       if (btnRowLower[0].btn.fallingEdge())
-        AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Looper_Bypass, 127);
+        FCBLooperEffect.setPlay(!FCBLooperEffect.getPlay());
+      btnRowLower[0].setLed(FCBLooperEffect.getPlay());
+
       if (btnRowLower[1].btn.fallingEdge())
-        AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Looper_HalfSpeed, 127);
+        FCBLooperEffect.setRecord(!FCBLooperEffect.getRecord());
+      btnRowLower[1].setLed(FCBLooperEffect.getRecord());
+
       if (btnRowLower[2].btn.fallingEdge())
-        AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Looper_Undo, 127);
+        FCBLooperEffect.setOnce(!FCBLooperEffect.getOnce());
+      btnRowLower[2].setLed(FCBLooperEffect.getOnce());
+
       if (btnRowLower[3].btn.fallingEdge())
-        AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Looper_Metronome, 127);
+        FCBLooperEffect.setDub(!FCBLooperEffect.getDub());
+      btnRowLower[3].setLed(FCBLooperEffect.getDub());
+
+
+      // The top row controls the looper reverse, Half-speed, Undo, Metronome, bypass.
+      if (btnRowUpper[0].btn.fallingEdge())
+        FCBLooperEffect.setReverse(!FCBLooperEffect.getReverse());
+      btnRowUpper[0].setLed(FCBLooperEffect.getReverse());
+
+      if (btnRowUpper[1].btn.fallingEdge())
+        FCBLooperEffect.setHalfSpeed(!FCBLooperEffect.getHalfSpeed());
+      btnRowUpper[1].setLed(FCBLooperEffect.getHalfSpeed());
+
+      if (btnRowUpper[2].btn.fallingEdge())
+        FCBLooperEffect.setUndo(!FCBLooperEffect.getUndo());
+      btnRowUpper[2].setLed(FCBLooperEffect.getUndo());
+
+      if (btnRowUpper[3].btn.fallingEdge())
+        FCBLooperEffect.setMetronome(!FCBLooperEffect.getMetronome());
+      btnRowUpper[3].setLed(FCBLooperEffect.getMetronome());
+
+      if (btnRowUpper[4].btn.fallingEdge())
+        FCBLooperEffect.setBypass(!FCBLooperEffect.getBypass());
+      btnRowUpper[4].setLed(FCBLooperEffect.getBypass());
 
       // In this mode the bankUp/Down buttons react a little different; instead of changing banks
       // they will just move to the next or previous preset on the AxeFx. We'll calculate the new
@@ -758,14 +797,18 @@ void loop() {
   // Moved this below the switch, so we can override the functionality of the expressionPedals
   // in the various different modes, if we wish.
   if (ExpPedal1.hasChanged()) {
-    Serial.println(ExpPedal1.getRawValue());
+    //Serial.println(ExpPedal1.getRawValue());
     AxeMidi.sendControlChange(AXEFX_DEFAULTCC_Input_Volume, ExpPedal1.getValue());
   }
 
   // ExpPedal2 has a new value? Send CC# Input_Volume
   if (ExpPedal2.hasChanged()) {
-    Serial.println(ExpPedal2.getRawValue());
-    AxeMidi.sendControlChange(AXEFX_DEFAULTCC_External_Control_1, ExpPedal2.getValue());
+    //Serial.println(ExpPedal2.getRawValue());
+    // If the pitchshifter is enabled, send control2 messages, otherwise, just send control1
+    if (FCBEffectManager[AXEFX_EFFECTID_Pitch1]->isActive())
+      AxeMidi.sendControlChange(AXEFX_DEFAULTCC_External_Control_2, ExpPedal2.getValue());
+    else
+      AxeMidi.sendControlChange(AXEFX_DEFAULTCC_External_Control_1, ExpPedal2.getValue());
   }
 
   // Lower button 4 always controls the XY mode, this assumes there is always a AMP block in your
@@ -778,7 +821,7 @@ void loop() {
   if (btnExpPedalRight.fallingEdge()) {
     // @TODO: Implement this
     Serial.println("TIPTOEBUTTON!!!");
-    AxeMidi.sendControlChange(AXEFX_DEFAULTCC_External_Control_2, 127);
+    //AxeMidi.sendControlChange(AXEFX_DEFAULTCC_External_Control_2, 127);
   }
 
   // Button on top controls tuner and taptempo

@@ -91,4 +91,15 @@
     }
   };
 
+  // Some functions to convert bytes to nibbles and back
+  inline byte byteToLS(byte b) {
+    return b & 0xf;
+  }
+  inline byte byteToMS(byte b) {
+    return (b >> 4) & 0xf;
+  }
+  inline byte LSMSToByte(byte ls, byte ms) {
+    return (ms & 0xf << 4) | ls & 0xf;
+  }
+
 #endif //FCBINFINITY_MAIN_H

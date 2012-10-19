@@ -36,7 +36,9 @@
 #define SYSEX_AXEFX_PRESET_NAME 0x0F
 #define SYSEX_AXEFX_PRESET_CHANGE 0x14
 #define SYSEX_AXEFX_GET_PRESET_EFFECT_BLOCKS_AND_CC_AND_BYPASS_STATE 0x0E
+#define SYSEX_AXEFX_SET_PARAMETER 0x02
 #define SYSEX_AXEFX_PRESET_MODIFIED 0x21
+#define SYSEX_AXEFX_LOOPER_STATUS 0x23
 
 // Used to predefine the checksum byte in sysex messages
 #define SYSEX_EMPTY_BYTE 0x00
@@ -57,6 +59,9 @@ class AxeMidi_Class {
     void sendControlChange(int cc, int value);
     void sendProgramChange(int pc);
     void sendLoopbackAndVersionCheck();
+    void requestEffectParameter(int effectID, int paramID, int value, int query);
+    void requestLooperUpdates();
+    void requestLooperUpdates(bool enable);
 
     boolean isInitialized() {
       return m_bFirmwareVersionReceived;
