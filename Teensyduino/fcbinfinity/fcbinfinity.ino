@@ -443,7 +443,7 @@ void handleWahPitchToggle(_FCBInfButton* btnObj) {
     if (btnObj->btn.fallingEdge()) {
       FCBEffectManager[AXEFX_EFFECTID_Pitch1]->toggleActive();
       btnObj->setLed(false);
-      return true;
+      return;
     }
   }
   else {
@@ -454,7 +454,7 @@ void handleWahPitchToggle(_FCBInfButton* btnObj) {
       AxeMidi.sendControlChange(AXEFX_DEFAULTCC_External_Control_1, 0);
       FCBEffectManager[AXEFX_EFFECTID_Pitch1]->toggleActive();
       AxeMidi.sendControlChange(AXEFX_DEFAULTCC_External_Control_2, 0);
-      return true;
+      return;
     }
   }
 }
