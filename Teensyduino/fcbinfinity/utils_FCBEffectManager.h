@@ -223,6 +223,15 @@ public:
     AxeMidi.sendControlChange(cc, (active)?127:0);
     AxeMidi.requestBypassStates();
   }
+  void setY(bool active, int bypassCC) {
+    if (state == -1) return;
+    if (active)
+      state |= AXEFX_EFFECT_STATE_X;
+    else
+      state ^= AXEFX_EFFECT_STATE_X;
+    AxeMidi.sendControlChange(bypassCC, (active)?127:0);
+    AxeMidi.requestBypassStates();
+  }
 protected:
   int effectID;
   int typeID;

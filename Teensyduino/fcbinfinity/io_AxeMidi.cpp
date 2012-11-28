@@ -212,9 +212,9 @@ void AxeMidi_Class::sendPresetChange(int iAxeFxPresetNumber) {
 void AxeMidi_Class::sendToggleXY(boolean bYModeOn) {
   // CC 100 to 119 control all the x/y for all the effects, just toggle them all.
   // If bYModeOn is true, send 127, otherwise send 0
-  for (int cc=100; cc<=119; ++cc)
-    sendControlChange(cc, bYModeOn?127:0);
-  requestBypassStates();
+  //for (int cc=100; cc<=119; ++cc)
+  sendControlChange(AXEFX_DEFAULTCC_Amp_1_XY, bYModeOn?127:0);
+  //requestBypassStates();
 }
 
 /**

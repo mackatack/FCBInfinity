@@ -551,7 +551,7 @@ void setup() {
 
   // Set the StompBoxMode to the normal mode, this just
   // sets the led to the correct color
-  setStompBoxMode(STOMP_MODE_NORMAL);
+  setStompBoxMode(STOMP_MODE_10STOMPS);
 
   // Just print a message on the LCD that we're waiting for messages...
   lcd.setCursor(0,0);
@@ -813,8 +813,9 @@ void loop() {
 
   // Lower button 4 always controls the XY mode, this assumes there is always a AMP block in your
   // preset, the current XY state is copied off that Amp1 block and toggles all the other effects
-  if (btnRowLower[4].btn.fallingEdge())
-    AxeMidi.sendToggleXY(!FCBEffectManager[AXEFX_EFFECTID_Amp1]->isXMode());
+  if (btnRowLower[4].btn.fallingEdge()) {
+    FCBEffectManager[AXEFX_EFFECTID_Amp1]->setY(!FCBEffectManager[AXEFX_EFFECTID_Amp1]->isXMode(), AXEFX_DEFAULTCC_Amp_1_XY);
+  }
   btnRowLower[4].setLed(!FCBEffectManager[AXEFX_EFFECTID_Amp1]->isXMode());
 
   // Button under exppedal1 enables or disables WAH or Pitch1
