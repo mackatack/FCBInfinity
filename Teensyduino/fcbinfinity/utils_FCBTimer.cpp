@@ -18,19 +18,20 @@ FCBTimer::FCBTimer(int interval, int numrepeats, void (*callback)(FCBTimer*)) {
 
 //
 // Add a new timer that calls the callback function once and then stops
-void FCBTimerManager::addTimeout(int timeout, void (*func)(FCBTimer*)) {
-  addInterval(timeout, 1, func);
+FCBTimer * FCBTimerManager::addTimeout(int timeout, void (*func)(FCBTimer*)) {
+  return addInterval(timeout, 1, func);
 }
 //
 // Add a new timer that calls the callback function infinitely
-void FCBTimerManager::addInterval(int interval, void (*func)(FCBTimer*)) {
-  addInterval(interval, -1, func);
+FCBTimer * FCBTimerManager::addInterval(int interval, void (*func)(FCBTimer*)) {
+  return addInterval(interval, -1, func);
 }
 //
 // Add a new timer that calls the callback function for numRepeats times
-void FCBTimerManager::addInterval(int interval, int numRepeats, void (*func)(FCBTimer*)) {
+FCBTimer * FCBTimerManager::addInterval(int interval, int numRepeats, void (*func)(FCBTimer*)) {
   FCBTimer * timer = new FCBTimer(interval, numRepeats, func);
   list->addItem(timer);
+  return timer;
 }
 
 //

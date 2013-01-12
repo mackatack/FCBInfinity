@@ -108,7 +108,7 @@ boolean AxeMidi_Class::handleMidi() {
         FCBLooperEffect.updateStatus(sysex[6]);
       }
 
-      // If tuner message, set tuner to on and reset the timer
+      // If set parameter response
       if (sysex[5] == SYSEX_AXEFX_SET_PARAMETER) {
         int effectID = 0, paramID = 0, value = 0, msg = 0;
         if (m_iAxeModel>=3) {
@@ -255,14 +255,14 @@ void AxeMidi_Class::sendSysEx(byte length, byte * sysexData) {
     for (int i=0; i<length-1; ++i)
       sum ^= sysexData[i];
     sysexData[length-1] = (sum & 0x7F);
-    Serial.print("Sending checksummed sysex: ");
-    bytesHexDump(sysexData, length);
-    Serial.println();
+    //Serial.print("Sending checksummed sysex: ");
+    //bytesHexDump(sysexData, length);
+    //Serial.println();
   } else {
     length--;
-    Serial.print("Sending unchecksummed sysex: ");
-    bytesHexDump(sysexData, length);
-    Serial.println();
+    //Serial.print("Sending unchecksummed sysex: ");
+    //bytesHexDump(sysexData, length);
+    //Serial.println();
   }
 
   MIDINEW.sendSysEx(length, sysexData);

@@ -193,7 +193,7 @@ public:
   void setStateAndCC(int state, int cc) {
     this->state = state;
     this->cc = cc;
-    Serial.print("EffectID ");
+    /*Serial.print("EffectID ");
     Serial.print(effectID);
     Serial.print(" state: ");
     Serial.print(state);
@@ -202,7 +202,7 @@ public:
     Serial.print(" Active: ");
     Serial.print(isActive());
     Serial.print(" cc: ");
-    Serial.println(cc);
+    Serial.println(cc);*/
   }
   bool isPlaced() { return state != -1; }
   bool isActive() { return isPlaced() && (state & AXEFX_EFFECT_STATE_ACTIVE) == AXEFX_EFFECT_STATE_ACTIVE; }
@@ -214,24 +214,8 @@ public:
     Serial.println("SUPERCLASS Updating looper params");
   };
   void handleParamUpdate(int paramID, int value) {};
-  void setActive(bool active) {
-    if (state == -1) return;
-    if (active)
-      state |= AXEFX_EFFECT_STATE_ACTIVE;
-    else
-      state ^= AXEFX_EFFECT_STATE_ACTIVE;
-    AxeMidi.sendControlChange(cc, (active)?127:0);
-    AxeMidi.requestBypassStates();
-  }
-  void setY(bool active, int bypassCC) {
-    if (state == -1) return;
-    if (active)
-      state |= AXEFX_EFFECT_STATE_X;
-    else
-      state ^= AXEFX_EFFECT_STATE_X;
-    AxeMidi.sendControlChange(bypassCC, (active)?127:0);
-    AxeMidi.requestBypassStates();
-  }
+  void setActive(bool active);
+  void setY(bool active, int bypassCC);
 protected:
   int effectID;
   int typeID;
@@ -334,7 +318,19 @@ extern FCBLooperEffect_Class FCBLooperEffect;
  */
 class FCBEffectManager_Class {
 public:
+  void setStatesStale() {
+    m_bEffectManagerStatesStale = true;
+  }
+
+  void updateIfStale() {
+    if (!m_bEffectManagerStatesStale) return;
+    m_bEffectManagerStatesStale = false;
+    AxeMidi.requestBypassStates();
+  }
+
   FCBEffectManager_Class() {
+    m_bEffectManagerStatesStale = true;
+
     for (int i=0; i<=AXEFX_EFFECT_COUNT; ++i) {
       //if (i == AXEFX_EFFECTID_Looper) {
       //  effects[i] = (FCBEffect*)&FCBLooperEffect;
@@ -372,6 +368,7 @@ public:
 private:
   FCBEffect * effects[AXEFX_EFFECT_COUNT];
   FCBEffect * dummy;
+  bool m_bEffectManagerStatesStale;
 };
 extern FCBEffectManager_Class FCBEffectManager;
 

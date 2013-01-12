@@ -64,6 +64,7 @@ _FCBInfButton btnRowLower[] = {
 Bounce btnBankUp = mkBounce(16);
 Bounce btnBankDown = mkBounce(10);
 Bounce btnStompMode = mkBounce(25);
+Bounce btnStompModeLong = mkBounce(1500);
 Bounce btnExpPedalRight = mkBounce(24);
 Bounce btnTapTempoTuner = mkBounce(22);
 
@@ -124,7 +125,7 @@ void onAxeFxDisconnectedEvent() {
  */
 void timerUpdateEffectStates(FCBTimer*) {
   if (!AxeMidi.isInitialized()) return;
-  AxeMidi.requestBypassStates();
+  FCBEffectManager.setStatesStale();
 }
 
 /**
@@ -168,26 +169,26 @@ void onAxeFxSysExMessage(byte * sysex, int length) {
       lcd.setCursor(0,1);
       lcd.print("                    ");
 
-      // Translate the finetune (0-127) to a value between 2 and 20
+      // Translate the finetune (0-127) to a value between 0 and 18*5 horizontal lines
       // so we know where to print the '|' character on the lcd
       // We can initialize the pos integer here because i've added curly
       // braces around this case block.
-      int pos = map(sysex[8], 0, 127, 2, 20);
-      lcd.setCursor(pos,1);
-      lcd.print("|");
+      int line = map(sysex[8], 0, 127, 0, 17*5);
+      int pos = floor(line/5) + 2;
 
       // Show a > or < if we need to tune up or down.
       // This will show >|< if we're in tune
-      if (sysex[8]>=62)
+      if (sysex[8]<=64) {
+        lcd.setCursor(11,1);
         lcd.print("<");
-      if (sysex[8]<=65) {
-        lcd.setCursor(pos-1,1);
+      }
+      if (sysex[8]>=62) {
+        lcd.setCursor(9,1);
         lcd.print(">");
       }
 
-      // Some debug info, print the raw finetune data
-      lcd.setCursor(18,1);
-      lcd.print(sysex[8], HEX);
+      lcd.setCursor(pos,1);
+      lcd.write(line % 5);
 
       // Jump to the first character on the second line of the lcd
       // Show the note name here
@@ -249,7 +250,7 @@ void onAxeFxSysExMessage(byte * sysex, int length) {
       // see: http://forum.fractalaudio.com/other-midi-controllers/39161-using-sysex-recall-present-effect-bypass-status-info-available.html
 
       // Some debug code until we figure out what all this means :P
-      Serial.println("Preset effect states received");
+      //Serial.println("Preset effect states received");
 
       // declare some vars we'll use in the loop
       int state;
@@ -360,6 +361,7 @@ void updateIO() {
   btnBankUp.update();
   btnBankDown.update();
   btnStompMode.update();
+  btnStompModeLong.update();
   btnExpPedalRight.update();
   btnTapTempoTuner.update();
 
@@ -500,6 +502,13 @@ inline boolean handleEffectStompButton(_FCBInfButton* btnInfo, int effectID, int
  * interface. This is also the place where we start our little
  * boot animation on the LCD.
  */
+byte tunerchars[5][8] = {
+  {B10000,B10000,B10000,B10000,B10000,B10000,B10000},
+  {B01000,B01000,B01000,B01000,B01000,B01000,B01000},
+  {B00100,B00100,B00100,B00100,B00100,B00100,B00100},
+  {B00010,B00010,B00010,B00010,B00010,B00010,B00010},
+  {B00001,B00001,B00001,B00001,B00001,B00001,B00001}
+};
 void setup() {
   // Light up the on-board teensy led
   pinMode(PIN_ONBOARD_LED, OUTPUT);
@@ -508,6 +517,13 @@ void setup() {
   // Start the debugging information over serial
   Serial.begin(57600);
   Serial.println("FCBInfinity Startup");
+
+  // Create some custom characters for the tuner
+  lcd.createChar(0, tunerchars[0]);
+  lcd.createChar(1, tunerchars[1]);
+  lcd.createChar(2, tunerchars[2]);
+  lcd.createChar(3, tunerchars[3]);
+  lcd.createChar(4, tunerchars[4]);
 
   // Initialize MIDI, for now set midiThru off and channel to OMNI
   MIDINEW.begin(MIDI_CHANNEL_OMNI);
@@ -579,12 +595,15 @@ void loop() {
   // callback function if the timeout has expired. This is a neat way
   // to flash leds and do some repeated actions, without all the hassle.
   static elapsedMicros timerUpdate;
-  if (timerUpdate>1000) {
+  if (timerUpdate>5000) {
     // There's no need to run the timers every single loop though,
     // only call it every ms.
     timerUpdate = 0;
     FCBTimerManager::processTimers();
   }
+
+  // Lets see if the effectmanager states need updating
+  FCBEffectManager.updateIfStale();
 
   // Right, since we're jumping into the stompbox-mode matter, let me quickly explain what
   // I'm trying to accomplish with this. Lets say you have a song where you're only using one preset
@@ -592,7 +611,21 @@ void loop() {
   // to control effects as well. The code below allows us to do so.
 
   // Remember the oldStompBoxMode should we require it (return from looper mode)
-  static int l_iPreviousStompBoxMode = STOMP_MODE_NORMAL;
+  // But first lets check for a button press longer than 1 second, which will bring us to STOMP_MODE_10STOMPS
+  static int l_iMainStompBoxMode = STOMP_MODE_10STOMPS;
+  static bool btnStompLongPressedHandled = false;
+  if (!btnStompLongPressedHandled && (btnStompMode.read() == LOW) && (btnStompMode.duration()>=1000)) {
+    if (l_iMainStompBoxMode == STOMP_MODE_NORMAL)
+      l_iMainStompBoxMode = STOMP_MODE_10STOMPS;
+    else
+      l_iMainStompBoxMode = STOMP_MODE_NORMAL;
+    setStompBoxMode(l_iMainStompBoxMode);
+    btnStompLongPressedHandled = true;
+    return;
+  }
+  if (btnStompMode.fallingEdge()) {
+    btnStompLongPressedHandled = false;
+  }
 
   // Lets see what mode we're in
   switch (g_iStompBoxMode) {
@@ -603,18 +636,10 @@ void loop() {
       // the 5th button controls the X/Y switch. BankUp/Down control the bank
       // for the preset switching on the FCBInfinity
 
-      // If the stompBox button is pressed, we want to switch to STOMP_MODE_10STOMPS
-      // Just return, because all the remaining code below is useless now.
-      // But first lets check for a button press longer than 2 seconds, which will bring us to
-      // looper mode
-      if ((btnStompMode.read() == LOW) && (btnStompMode.duration()>=2000)) {
-        setStompBoxMode(STOMP_MODE_LOOPER);
-        return;
-      }
+      // If the stompBox button is pressed, we want to switch to STOMP_MODE_LOOPER
       if (btnStompMode.fallingEdge()) {
-        // Store the old mode
-        l_iPreviousStompBoxMode = STOMP_MODE_NORMAL;
-        setStompBoxMode(STOMP_MODE_10STOMPS);
+        // Switch to looper mode
+        setStompBoxMode(STOMP_MODE_LOOPER);
         return;
       }
 
@@ -678,18 +703,10 @@ void loop() {
       // toggle effect bypasses, the BankUp/Down now just select the next or previous
       // preset.
 
-      // If the stompBox button is pressed, we want to switch back to STOMP_MODE_NORMAL
-      // Just return, because all the remaining code below is useless now.
-      // But first lets check for a button press longer than 2 seconds, which will bring us to
-      // looper mode
-      if ((btnStompMode.read() == LOW) && (btnStompMode.duration()>=2000)) {
-        setStompBoxMode(STOMP_MODE_LOOPER);
-        return;
-      }
+      // If the stompBox button is pressed, we want to switch to STOMP_MODE_LOOPER
       if (btnStompMode.fallingEdge()) {
-        // Store the old mode
-        l_iPreviousStompBoxMode = STOMP_MODE_10STOMPS;
-        setStompBoxMode(STOMP_MODE_NORMAL);
+        // Switch to looper mode
+        setStompBoxMode(STOMP_MODE_LOOPER);
         return;
       }
 
@@ -731,7 +748,7 @@ void loop() {
       if (btnStompMode.fallingEdge()) {
         // Restore the old mode
         AxeMidi.requestLooperUpdates(false);
-        setStompBoxMode(l_iPreviousStompBoxMode);
+        setStompBoxMode(l_iMainStompBoxMode);
         return;
       }
 

@@ -67,17 +67,17 @@ class FCBTimerManager  {
     /**
      * Add a new timer that calls the callback function once and then stops
      */
-    static void addTimeout(int timeout, void (*func)(FCBTimer*));
+    static FCBTimer * addTimeout(int timeout, void (*func)(FCBTimer*));
 
     /**
      * Add a new timer that calls the callback function infinitely
      */
-    static void addInterval(int interval, void (*func)(FCBTimer*));
+    static FCBTimer * addInterval(int interval, void (*func)(FCBTimer*));
 
     /**
      * Add a new timer that calls the callback function for numRepeats times
      */
-    static void addInterval(int interval, int numRepeats, void (*func)(FCBTimer*));
+    static FCBTimer * addInterval(int interval, int numRepeats, void (*func)(FCBTimer*));
 
     /**
      * Deletes all timers with the corresponding function pointer.
