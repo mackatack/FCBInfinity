@@ -39,6 +39,7 @@
 #define SYSEX_AXEFX_SET_PARAMETER 0x02
 #define SYSEX_AXEFX_PRESET_MODIFIED 0x21
 #define SYSEX_AXEFX_LOOPER_STATUS 0x23
+#define SYSEX_AXEFX_SCENE_STATUS 0x29
 
 // Used to predefine the checksum byte in sysex messages
 #define SYSEX_EMPTY_BYTE 0x00

@@ -78,10 +78,12 @@ ExpPedals_Class ExpPedal2(A7);  // Analog pin 7 (pin 45 on the Teensy)
 #define STOMP_MODE_NORMAL     0
 #define STOMP_MODE_10STOMPS   1
 #define STOMP_MODE_LOOPER     2
+#define STOMP_MODE_SCENE      3
 
 // Some important variables we'll need later on and want globally, if we want to
 // access them from any file, externalize them in fcbinfinity.h
 int     g_iCurrentPreset = 0;                     // Here we track the current preset, in case we want to use it
+int     g_iCurrentScene = 0;                      // Here we track the current scene for the current preset.
 int     g_iPresetBank = 0;                        // The bank controllable by the BankUp and BankDown buttons
 int     g_iStompBoxMode = STOMP_MODE_10STOMPS;    // The current stompboxmode, see the loop() function below
 
@@ -244,6 +246,14 @@ void onAxeFxSysExMessage(byte * sysex, int length) {
 
       return;
 
+    case SYSEX_AXEFX_SCENE_STATUS:
+
+      // Scene status message
+      if (g_iCurrentScene != sysex[6])
+        g_iCurrentScene = sysex[6];
+
+      break;
+
     case SYSEX_AXEFX_GET_PRESET_EFFECT_BLOCKS_AND_CC_AND_BYPASS_STATE:
       // We received the current states of the effects.
       // The sysex will contain the following data
@@ -322,6 +332,12 @@ void setStompBoxMode(int iNewMode) {
       lcd.setCursor(0,1);
       lcd.print("Mode: Looper        ");
       AxeMidi.requestLooperUpdates();
+      break;
+    case STOMP_MODE_SCENE:
+      // purple led
+      setRGBLed(50, 0, 50);
+      lcd.setCursor(0,1);
+      lcd.print("Mode: Scene select  ");
       break;
   }
 }
@@ -459,6 +475,16 @@ void handleWahPitchToggle(_FCBInfButton* btnObj) {
       return;
     }
   }
+}
+
+/**
+ *
+ */
+inline void setScene(int iNewSceneNumber) {
+  g_iCurrentScene = iNewSceneNumber;
+  FCBEffectManager.setStatesStale();
+  AxeMidi.sendControlChange(34, iNewSceneNumber);
+
 }
 
 /**
@@ -636,10 +662,10 @@ void loop() {
       // the 5th button controls the X/Y switch. BankUp/Down control the bank
       // for the preset switching on the FCBInfinity
 
-      // If the stompBox button is pressed, we want to switch to STOMP_MODE_LOOPER
+      // If the stompBox button is pressed, we want to switch to STOMP_MODE_SCENE
       if (btnStompMode.fallingEdge()) {
         // Switch to looper mode
-        setStompBoxMode(STOMP_MODE_LOOPER);
+        setStompBoxMode(STOMP_MODE_SCENE);
         return;
       }
 
@@ -703,10 +729,10 @@ void loop() {
       // toggle effect bypasses, the BankUp/Down now just select the next or previous
       // preset.
 
-      // If the stompBox button is pressed, we want to switch to STOMP_MODE_LOOPER
+      // If the stompBox button is pressed, we want to switch to STOMP_MODE_SCENE
       if (btnStompMode.fallingEdge()) {
         // Switch to looper mode
-        setStompBoxMode(STOMP_MODE_LOOPER);
+        setStompBoxMode(STOMP_MODE_SCENE);
         return;
       }
 
@@ -739,6 +765,54 @@ void loop() {
       }
 
     } // end of STOMP_MODE_10STOMPS
+    break;
+
+    case STOMP_MODE_SCENE: {
+      // In this mode the RGB-led is colored blue and all the upper and lower buttons
+      // toggle effect bypasses, the BankUp/Down now just select the next or previous
+      // preset.
+
+      // If the stompBox button is pressed, we want to switch to STOMP_MODE_LOOPER
+      if (btnStompMode.fallingEdge()) {
+        // Switch to looper mode
+        setStompBoxMode(STOMP_MODE_LOOPER);
+        return;
+      }
+
+      // Same as the normal stomp mode, the top row will control the same effects
+      if (handleEffectStompButton(&btnRowUpper[0], AXEFX_EFFECTID_Multidelay1,  AXEFX_EFFECTID_Multidelay2)) return;
+      if (handleEffectStompButton(&btnRowUpper[1], AXEFX_EFFECTID_Delay1,       AXEFX_EFFECTID_Delay2,    AXEFX_EFFECTID_Multidelay2)) return;
+      if (handleEffectStompButton(&btnRowUpper[2], AXEFX_EFFECTID_Chorus1,      AXEFX_EFFECTID_Chorus2)) return;
+      if (handleEffectStompButton(&btnRowUpper[3], AXEFX_EFFECTID_Flanger1,     AXEFX_EFFECTID_Flanger2)) return;
+
+      // Handle the WAH/Pitch toggle
+      handleWahPitchToggle(&btnRowUpper[4]);
+
+      // Loop through all the bottom buttons and set the led status
+      // according to the current scene. If the button is pressed set
+      // it to the new scene
+      for (int i=0; i<5; ++i) {
+        btnRowLower[i].setLed(g_iCurrentScene == i);
+
+        if (btnRowLower[i].btn.fallingEdge()) {
+          setScene(i);
+          return;
+        }
+      }
+
+      // In this mode the bankUp/Down buttons react a little different; instead of changing banks
+      // they will just move to the next or previous preset on the AxeFx. We'll calculate the new
+      // bank automatically when we receive the preset changed SysEx from the AxeFx.
+      if (btnBankUp.fallingEdge()) {
+        AxeMidi.sendPresetChange(g_iCurrentPreset+1);
+        return;
+      }
+      if (btnBankDown.fallingEdge()) {
+        AxeMidi.sendPresetChange(g_iCurrentPreset-1);
+        return;
+      }
+
+    } // end of STOMP_MODE_SCENE
     break;
 
     case STOMP_MODE_LOOPER: {
@@ -830,10 +904,12 @@ void loop() {
 
   // Lower button 4 always controls the XY mode, this assumes there is always a AMP block in your
   // preset, the current XY state is copied off that Amp1 block and toggles all the other effects
-  if (btnRowLower[4].btn.fallingEdge()) {
-    FCBEffectManager[AXEFX_EFFECTID_Amp1]->setY(!FCBEffectManager[AXEFX_EFFECTID_Amp1]->isXMode(), AXEFX_DEFAULTCC_Amp_1_XY);
+  if (g_iStompBoxMode != STOMP_MODE_SCENE) {
+    if (btnRowLower[4].btn.fallingEdge()) {
+      FCBEffectManager[AXEFX_EFFECTID_Amp1]->setY(!FCBEffectManager[AXEFX_EFFECTID_Amp1]->isXMode(), AXEFX_DEFAULTCC_Amp_1_XY);
+    }
+    btnRowLower[4].setLed(!FCBEffectManager[AXEFX_EFFECTID_Amp1]->isXMode());
   }
-  btnRowLower[4].setLed(!FCBEffectManager[AXEFX_EFFECTID_Amp1]->isXMode());
 
   // Button under exppedal1 enables or disables WAH or Pitch1
   if (btnExpPedalRight.fallingEdge()) {
